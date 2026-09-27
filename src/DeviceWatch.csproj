@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 目标 .NET Framework 4.8：Win10 1803+ / Win11 系统自带，用户免安装 -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+
+    <AssemblyName>设备连接监控</AssemblyName>
+    <RootNamespace>DeviceWatch</RootNamespace>
+
+    <!-- WinForms：托盘图标和菜单要用 -->
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <!-- 单文件、小体积 -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <Deterministic>true</Deterministic>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!-- 老 API 的过时警告不用报 -->
+    <NoWarn>$(NoWarn);CS0618;CS1591</NoWarn>
+
+    <!-- 引用项目的其它文件 -->
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <!-- 排除临时验证目录：否则会被当成第二个入口点，报 CS0017 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);_temp\**;bin\**;obj\**</DefaultItemExcludes>
+    <EnableDefaultEmbeddedResourceItems>true</EnableDefaultEmbeddedResourceItems>
+
+    <!-- 让 System.Management / System.ServiceProcess 可用 -->
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WMI（CPU 温度、内存条信息）-->
+    <Reference Include="System.Management" />
+    <!-- Toast.cs 用 dynamic 调 WinRT 的实例方法：WinRT 对象不实现 IDispatch，
+         纯反射调 LoadXml/Show 会抛"COM 目标不会实现 IDispatch"，必须走 WinRT binder。
+         该程序集是 .NET Framework 自带的，不引入任何外部依赖。 -->
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 网页前端打进 exe，保证「单个 exe 免安装」 -->
+    <EmbeddedResource Include="ui\index.html">
+      <LogicalName>DeviceWatch.ui.index.html</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

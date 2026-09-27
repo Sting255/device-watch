@@ -1,18 +1,16 @@
-# 运行时生成的文件，不要提交
+# 运行时生成，不要提交
 settings.json
 设备清单.txt
 logs/
 out/
 .stop-request
 *.pid
-sensors.json
 
-# 临时/调试产物
-_tmp*
-_*.ps1
-_*.txt
-_*.cs
-*.log
+# 构建中间产物
+src/bin/
+src/obj/
+src/_temp/
+src/_contract/
 
 # 打包产物
 *.zip

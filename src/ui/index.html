@@ -1,0 +1,1735 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>设备连接监控</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0e1014;color:#e6e9ef;font:14px/1.6 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:12px 20px;background:#151922;border-bottom:1px solid #232833;position:sticky;top:0;z-index:10;flex-wrap:wrap}
+h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.5px}
+h2{font-size:13px;margin:0 0 10px;font-weight:600;color:#a8b1c2;text-transform:none;display:flex;align-items:center;gap:8px}
+.pill{padding:4px 12px;border-radius:999px;font-size:13px;font-weight:600;border:1px solid transparent}
+.pill.ok{background:#0f2e1d;color:#4ade80;border-color:#1d6b3f}
+.pill.warn{background:#332608;color:#fbbf24;border-color:#7a5c14}
+.pill.bad{background:#3a1212;color:#f87171;border-color:#7f1d1d}
+.pill.off{background:#242934;color:#94a3b8;border-color:#3a4150}
+.meta{margin-left:auto;color:#8b93a3;font-size:13px;display:flex;gap:18px;flex-wrap:wrap}
+.meta b{color:#e6e9ef;font-weight:600}
+main{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;padding:14px;max-width:1560px;margin:0 auto;align-items:start;grid-auto-rows:8px}
+.dashbar{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:12px;color:#6b7484;padding:0 2px}
+.dashbar b{color:#8b93a3}
+.dashbar button{margin-left:auto}
+.pnl{grid-column:span 6}
+.pnl[data-span="12"]{grid-column:span 12}
+.pnl[data-span="4"]{grid-column:span 4}
+.pnl.dragging{opacity:.4}
+.pnl.over{outline:2px dashed #3b82f6;outline-offset:-2px}
+.pnlh{display:flex;align-items:center;gap:8px}
+.grip{cursor:grab;color:#454c5a;font-size:14px;user-select:none;flex:none}
+.grip:active{cursor:grabbing}
+.pnlh .spanbtn{margin-left:auto;flex:none;background:#161b26;border:1px solid #2b3346;color:#6b7484;border-radius:5px;font-size:11px;line-height:1;padding:3px 6px;cursor:pointer}
+.pnlh .spanbtn:hover{color:#cbd5e1;border-color:#3b82f6}
+.pnlh .hidebtn{margin-left:5px;flex:none;background:transparent;border:0;color:#4b5563;font-size:12px;line-height:1;padding:3px 5px;cursor:pointer;border-radius:5px}
+.pnlh .hidebtn:hover{color:#f87171;background:#2a1a1c}
+.hiddenbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.hb-lbl{font-size:12px;color:#6b7484}
+.hb-chip{background:#1b2130;border:1px solid #2b3346;border-radius:6px;padding:2px 8px;font-size:11.5px;color:#8b93a3;cursor:pointer;font-family:inherit}
+.hb-chip:hover{color:#4ade80;border-color:#1d6b3f}
+.viswrap{position:relative;display:inline-block}
+.tool-row{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-bottom:11px}
+.tool-row button{min-width:118px}
+.tool-hint{font-size:11.5px;color:#6b7484;line-height:1.4}
+.tool-msg{font-size:12px;margin-top:7px;min-height:17px;line-height:1.5}
+.tool-msg.ok{color:#4ade80}
+.tool-msg.err{color:#f87171}
+.tool-msg.busy{color:#fbbf24}
+.inv-out{margin-top:8px;font-size:11.5px;line-height:1.5;color:#8b93a3;max-height:320px;overflow:auto;
+  white-space:pre;font-family:Consolas,"Courier New",monospace;background:#0f1319;border:1px solid #1e232e;
+  border-radius:7px;padding:8px 10px;display:none}
+/* 分开跑时，只显示本模式相关的卡片 */
+body[data-mode="Device"] .pnl[data-panel^="hw-"]{display:none!important}
+body[data-mode="Hardware"] .pnl[data-panel="problems"],
+body[data-mode="Hardware"] .pnl[data-panel="events"],
+body[data-mode="Hardware"] .pnl[data-panel="stats"],
+body[data-mode="Hardware"] .pnl[data-panel="devices"],
+body[data-mode="Hardware"] .pnl[data-panel="net"]{display:none!important}
+body[data-mode="Hardware"] .devonly{display:none}
+body[data-mode="Device"] .viswrap,body[data-mode="Device"] #hwModeSeg{display:none}
+body[data-mode="Hardware"] .hiddenbar{display:none!important}
+.modebar{grid-column:1/-1;margin:0 0 12px;padding:9px 13px;border-radius:9px;background:#132135;border:1px solid #1e4266;color:#9dc4ea;font-size:13px;line-height:1.6}
+.modebar b{color:#dbeafe}
+.modebar a{color:#4ade80;text-decoration:none;border-bottom:1px dashed #4ade80}
+.modebar a:hover{color:#86efac}
+.vispop{position:absolute;top:27px;left:0;z-index:80;background:#151922;border:1px solid #2b3346;border-radius:10px;padding:8px 12px 10px;box-shadow:0 10px 30px rgba(0,0,0,.6);max-height:66vh;overflow:auto;min-width:250px}
+.vispop h4{margin:9px 0 3px;font-size:11.5px;color:#7d8698;font-weight:600;letter-spacing:.5px}
+.vispop h4:first-child{margin-top:2px}
+.vispop label{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#cbd5e1;padding:2.5px 0;cursor:pointer;white-space:nowrap}
+.vispop label:hover{color:#fff}
+.vispop input{accent-color:#3b82f6;cursor:pointer}
+.vp-foot{display:flex;gap:7px;margin-top:11px;border-top:1px solid #232833;padding-top:9px}
+.seg{display:inline-flex;border:1px solid #2b3346;border-radius:6px;overflow:hidden;flex:none}
+.seg button{background:#161b26;border:0;color:#8b93a3;font-size:11px;padding:2px 9px;cursor:pointer;line-height:1.6}
+.seg button.on{background:#243049;color:#e6e9ef}
+.card{background:#151922;border:1px solid #232833;border-radius:10px;padding:11px 13px;min-width:0}
+.full{grid-column:1/-1}
+.events{max-height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.ev{display:flex;gap:8px;align-items:baseline;padding:4px 8px;border-radius:5px;border-left:3px solid #333;background:#12151d;font-size:12.5px;white-space:nowrap;overflow:hidden}
+.ev .t{color:#6b7484;font-variant-numeric:tabular-nums;font-size:12px;flex:none}
+.ev .k{font-size:12px;font-weight:600;flex:none;min-width:56px}
+.ev .n{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.ev .d{color:#7d8698;font-size:11.5px;overflow:hidden;text-overflow:ellipsis}
+.ev.off{border-color:#ef4444}.ev.off .k{color:#f87171}
+.ev.on{border-color:#22c55e}.ev.on .k{color:#4ade80}
+.ev.warn{border-color:#f59e0b}.ev.warn .k{color:#fbbf24}
+.ev.net{border-color:#06b6d4}.ev.net .k{color:#22d3ee}
+.ev.sys{border-color:#a855f7}.ev.sys .k{color:#c084fc}
+.ev.bus{border-color:#ec4899}.ev.bus .k{color:#f472b6}
+.ev.new{animation:flash 1.6s ease-out}
+@keyframes flash{0%{background:#2a3550}100%{background:#12151d}}
+.empty{color:#5b6472;padding:14px;text-align:center}
+.row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed #232833;font-size:13px}
+.row:last-child{border:0}
+.row .lbl{color:#a8b1c2;min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .val{flex:none;max-width:60%;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.up{color:#4ade80}.down{color:#f87171}.dim{color:#6b7484}
+.plabel{font-size:11px;color:#5b6472;margin:7px 0 5px;display:flex;justify-content:space-between;gap:8px}
+.plabel span{color:#4b5563}
+.pings{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 9px}
+.chip{background:#1b2130;border:1px solid #2b3346;border-radius:6px;padding:2px 7px;font-size:11.5px;color:#8b93a3;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.chip b{color:#cbd5e1;font-weight:600;margin-left:4px}
+.chip.bad{border-color:#7f1d1d}.chip.bad b{color:#f87171}
+.chip.gw{background:#182234;border-color:#2b4a6f}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid #1e232e}
+th{color:#7d8698;font-weight:500;font-size:12px}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:5px;background:#232833;border-radius:3px;overflow:hidden;margin-top:3px}
+.bar i{display:block;height:100%;background:#ef4444}
+input[type=search]{width:100%;padding:7px 10px;margin-bottom:10px;background:#0e1014;border:1px solid #2b3140;border-radius:7px;color:#e6e9ef;font-size:13px}
+input[type=search]:focus{outline:none;border-color:#3b82f6}
+button{padding:5px 12px;background:#1e2533;border:1px solid #2f3748;border-radius:6px;color:#cbd5e1;cursor:pointer;font-size:12px;font-weight:500}
+button:hover{background:#27303f}
+.devices{max-height:460px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:4px}
+.dev{padding:6px 9px;background:#12151d;border-radius:6px;border-left:3px solid #2f3748;font-size:13px;min-width:0}
+.dev .dn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dev .dc{color:#6b7484;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dev.bad{border-color:#f59e0b}
+.count{color:#6b7484;font-weight:400;font-size:12px}
+/* ===== 硬件监测卡（hw- 前缀，独立于原有样式） ===== */
+.hw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px}
+.hw-tile{background:#12151d;border:1px solid #1e232e;border-radius:8px;padding:7px 9px;min-width:0}
+.hw-tile.wide{grid-column:span 2}
+.hw-dgroup{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px}
+.hw-tile.full{grid-column:1/-1}
+.hw-tile .hw-lbl{font-size:11px;color:#6b7484;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px}
+.hw-tile .hw-val{font-size:17px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hw-tile .hw-val.sm{font-size:12.5px;font-weight:600;color:#cbd5e1}
+.hw-tile .hw-val .u{font-size:11px;font-weight:500;color:#7d8698;margin-left:2px}
+.hw-tile .hw-bar{margin-top:5px}
+.hw-tile .hw-sub2{font-size:11px;color:#5b6472;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hw-box{min-width:0}   /* 不再画内框：卡片本身就是框，避免"框中框" */
+.hw-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12px;color:#7d8698;margin-bottom:2px;min-height:15px}
+.hw-right{margin-left:auto}
+.hw-big{font-size:23px;font-weight:700;line-height:1.3;font-variant-numeric:tabular-nums}
+.hw-unit{font-size:12px;font-weight:500;color:#7d8698;margin-left:3px}
+.hw-sub{font-size:11.5px;color:#6b7484;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:6px}
+.hw-empty{color:#6b7484;font-size:12.5px;padding:4px 0}
+.hw-bar{height:6px;background:#232833;border-radius:3px;overflow:hidden;margin-top:5px}
+.hw-bar i{display:block;height:100%;width:0;background:#4ade80;transition:width .35s ease,background .35s ease}
+.hw-bar i.hw-ok{background:#4ade80}
+.hw-bar i.hw-warn{background:#fbbf24}
+.hw-bar i.hw-bad{background:#f87171}
+.hw-ok{color:#4ade80}.hw-warn{color:#fbbf24}.hw-bad{color:#f87171}.hw-dim{color:#6b7484}
+.hw-row{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:2px 0;font-variant-numeric:tabular-nums}
+.hw-k{color:#6b7484;white-space:nowrap}
+.hw-disk{padding:6px 0;border-bottom:1px dashed #232833}
+.hw-disk:last-child{border-bottom:0;padding-bottom:0}
+.hw-dk{font-weight:600;color:#cbd5e1;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.hw-temp{font-weight:600}
+.hw-dk .hw-dim{font-weight:400;font-size:11.5px}
+.hw-foot{grid-column:1/-1;display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:#6b7484;border-top:1px solid #1e232e;padding-top:9px}
+.hw-foot b{color:#a8b1c2;font-weight:600}
+.hw-metric{margin-bottom:2px}
+.hw-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hw-box.hw-wide{grid-column:1/-1}
+.hw-vol{display:flex;align-items:center;gap:9px;padding:2px 0;font-size:12.5px}
+.hw-drv{width:28px;flex:none;color:#cbd5e1;font-weight:600}
+.hw-vol .hw-bar{flex:1;margin-top:0}
+.hw-volt{flex:none;color:#6b7484;font-variant-numeric:tabular-nums}
+.hw-cols{display:grid;grid-template-columns:1fr;gap:0;margin-top:6px}
+.hw-cols .hw-row{padding:1px 0;white-space:nowrap}
+.hw-sub.hw-wrap{white-space:normal;word-break:break-word;overflow:visible;text-overflow:clip;line-height:1.35}
+
+/* ===== 设置抽屉（st- 前缀） ===== */
+.st-open{margin-left:2px;visibility:hidden}
+.st-mask{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .22s;z-index:40}
+.st-mask.on{opacity:1;pointer-events:auto}
+.st-drawer{position:fixed;top:0;right:0;bottom:0;width:430px;max-width:94vw;background:#151922;border-left:1px solid #232833;box-shadow:-14px 0 34px rgba(0,0,0,.5);transform:translateX(103%);transition:transform .24s ease;z-index:41;display:flex;flex-direction:column}
+.st-drawer.on{transform:none}
+.st-head{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #232833}
+.st-title{flex:1 1 auto;font-weight:600;font-size:14px}
+.st-mini{padding:3px 9px}
+.st-body{flex:1 1 auto;overflow-y:auto;padding:12px 14px;min-height:0}
+.st-foot{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid #232833}
+.st-footmsg{flex:1 1 auto;font-size:12px;color:#6b7484}
+.st-footmsg.st-dirty{color:#fbbf24}
+.st-save{padding:7px 20px;font-size:13px;font-weight:600;background:#166534;border-color:#1d6b3f;color:#bbf7d0}
+.st-save:hover{background:#15803d}
+.st-save[disabled]{opacity:.6;cursor:default}
+.st-group{margin-bottom:16px}
+.st-gname{font-size:12px;font-weight:600;color:#22d3ee;letter-spacing:.4px;margin-bottom:2px}
+.st-item{padding:9px 0;border-bottom:1px dashed #232833}
+.st-item:last-child{border-bottom:0;padding-bottom:2px}
+.st-lbl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-weight:600;font-size:13px}
+.st-hint{font-size:11.5px;color:#6b7484;margin-top:3px;line-height:1.55;word-break:break-all}
+.st-unit{font-size:11.5px;font-weight:400;color:#7d8698}
+.st-restart{font-size:10.5px;font-weight:600;background:#332608;color:#fbbf24;border:1px solid #7a5c14;border-radius:4px;padding:0 5px}
+.st-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
+.st-num{width:120px;padding:5px 8px;background:#0e1014;border:1px solid #2b3140;border-radius:6px;color:#e6e9ef;font-size:13px;font-variant-numeric:tabular-nums}
+.st-sel{padding:5px 8px;background:#0e1014;border:1px solid #2b3140;border-radius:6px;color:#e6e9ef;font-size:13px}
+.st-txt{padding:5px 9px;background:#0e1014;border:1px solid #2b3140;border-radius:6px;color:#e6e9ef;font-size:12.5px;min-width:0}
+.st-num:focus,.st-sel:focus,.st-txt:focus{outline:none;border-color:#3b82f6}
+.st-sw{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#a8b1c2;cursor:pointer;user-select:none}
+.st-sw input{display:none}
+.st-sw .st-sl{width:38px;height:20px;border-radius:999px;background:#39404f;position:relative;transition:background .18s;flex:none}
+.st-sw .st-sl::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .18s}
+.st-sw input:checked + .st-sl{background:#16a34a}
+.st-sw input:checked + .st-sl::after{transform:translateX(18px)}
+.st-swtxt{font-size:12px;color:#8b93a3}
+.st-chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:24px}
+.st-chip{display:inline-flex;align-items:center;gap:2px;background:#1b2130;border:1px solid #2b3346;border-radius:6px;padding:2px 3px 2px 8px;font-size:12px;color:#cbd5e1;max-width:100%;overflow:hidden}
+.st-x{background:transparent;border:0;color:#6b7484;font-size:13px;line-height:1;padding:0 4px;cursor:pointer}
+.st-x:hover{background:transparent;color:#f87171}
+.st-addrow{display:flex;gap:6px;margin-top:7px}
+.st-addrow .st-txt{flex:1 1 auto}
+.st-dim{color:#6b7484;font-size:12px}
+.st-toast{position:fixed;top:0;left:0;right:0;z-index:60;padding:10px 16px;font-size:13px;font-weight:600;text-align:center;transform:translateY(-120%);transition:transform .25s ease;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.st-toast.on{transform:none}
+.st-toast.st-ok{background:#0f2e1d;color:#4ade80;border-bottom:1px solid #1d6b3f}
+.st-toast.st-bad{background:#3a1212;color:#f87171;border-bottom:1px solid #7f1d1d}
+.st-toast.st-warn{background:#332608;color:#fbbf24;border-bottom:1px solid #7a5c14}
+.st-terr{font-weight:400;font-size:12px;color:#fca5a5;margin-top:2px}
+.st-twarn{font-weight:400;font-size:12px;color:#fde68a;margin-top:2px}
+
+/* ===== 在线设备列表里的操作按钮 ===== */
+.dact{margin-left:5px;padding:1px 8px;font-size:11px;line-height:1.5;border-radius:5px;background:#1b2130;border:1px solid #2b3346;color:#8b93a3}
+.dact:hover{background:#27303f;color:#cbd5e1}
+.dact[disabled]{opacity:.55;cursor:default}
+.dact.done{background:#0f2e1d;border-color:#1d6b3f;color:#4ade80}
+.sw{display:flex;align-items:center;gap:7px;font-size:13px;color:#a8b1c2;cursor:pointer;user-select:none}
+.sw input{display:none}
+.sw .sl{width:38px;height:20px;border-radius:999px;background:#39404f;position:relative;transition:background .18s;flex:none}
+.sw .sl::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .18s}
+.sw input:checked + .sl{background:#16a34a}
+.sw input:checked + .sl::after{transform:translateX(18px)}
+.prob{padding:7px 9px;background:#2a1a0c;border-left:3px solid #f59e0b;border-radius:6px;margin-bottom:5px}
+.prob .pn{font-weight:600;color:#fbbf24;word-break:break-all}
+.prob .pd{color:#9a8a72;font-size:12px;word-break:break-all}
+@media(max-width:1100px){.pnl,.pnl[data-span="12"],.pnl[data-span="4"]{grid-column:span 12}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🔌 <span id="hTitle">设备连接监控</span></h1>
+  <div id="pill" class="pill off">连接中…</div>
+  <label class="sw" title="关闭后所有设备告警都不再弹窗（日志和网页照常记录）">
+    <input type="checkbox" id="notifySw"><span class="sl"></span>弹窗通知
+  </label>
+  <div class="meta">
+    <span class="devonly">在线设备 <b id="mDev">-</b></span>
+    <span class="devonly">已记录事件 <b id="mEvt">-</b></span>
+    <span>运行 <b id="mUp">-</b></span>
+    <span id="mNow" class="dim"></span>
+  </div>
+</header>
+<main id="dash">
+  <div class="modebar" id="modeBar" style="display:none"></div>
+  <div class="dashbar">
+    <span>拖动卡片标题栏可调整顺序 · 点 <b>⬒</b> 切换半宽 / 全宽 · 布局会记住</span>
+    <span class="seg" id="hwSeg"><button type="button" data-m="temp">温度</button><button type="button" data-m="load">占用</button><button type="button" data-m="both">都显示</button></span>
+    <span class="count" id="hwWhen"></span>
+    <span class="hiddenbar" id="hiddenBar" style="display:none"></span>
+    <span class="seg" id="runModeSeg" title="切换监测范围：只盯外设插拔、只看硬件状态、或者两者都看">
+      <button type="button" data-rm="Device">外设</button><button type="button" data-rm="Hardware">硬件</button><button type="button" data-rm="All">外设+硬件</button>
+    </span>
+    <span class="seg" id="hwModeSeg">
+      <button type="button" data-hm="simple">简约</button><button type="button" data-hm="full">详细</button>
+    </span>
+    <span class="viswrap">
+      <button id="visBtn" class="st-mini" type="button" title="选择每个卡片里要显示哪些指标">显示指标 ▾</button>
+      <div id="visPop" class="vispop" style="display:none"></div>
+    </span>
+    <button id="layReset" class="st-mini" type="button">恢复默认布局</button>
+  </div>
+
+  <section class="card pnl" data-panel="hw-cpu" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>CPU<button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div id="hwCpu"><div class="empty">采集中…</div></div>
+  </section>
+
+  <section class="card pnl" data-panel="hw-mem" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>内存<button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div id="hwMem"><div class="empty">采集中…</div></div>
+  </section>
+
+  <section class="card pnl" data-panel="hw-gpu" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>GPU<button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div id="hwGpu"><div class="empty">采集中…</div></div>
+  </section>
+
+  <section class="card pnl" data-panel="hw-disk" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>硬盘<button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div id="hwDisk"><div class="empty">采集中…</div></div>
+  </section>
+
+  <section class="card pnl" data-panel="hw-io" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>速率<button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div id="hwIo"><div class="empty">采集中…</div></div>
+  </section>
+
+  <section class="card pnl" data-panel="problems" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>设备异常 <span class="count" id="probCount"></span><button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div id="problems"></div>
+  </section>
+
+  <section class="card pnl" data-panel="net" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>网络<button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div id="net"></div>
+  </section>
+
+  <section class="card pnl" data-panel="events" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>实时事件流 <span class="count" id="evCount"></span><button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div class="events" id="events"><div class="empty">等待数据…</div></div>
+  </section>
+
+  <section class="card pnl" data-panel="stats" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>断联排行 <span class="count">按物理设备，一次拔插算一次</span><button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div id="stats"></div>
+  </section>
+
+  <section class="card pnl" data-panel="tools" data-span="4">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>工具<button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button></h2>
+    <div id="toolsBox"><div class="empty">载入中…</div></div>
+  </section>
+
+  <section class="card pnl" data-panel="devices" data-span="12">
+    <h2 class="pnlh"><span class="grip" title="按住拖动排序">⠿</span>在线设备 <span class="count" id="devCount"></span>
+      <button id="btnLoad" class="st-mini" type="button">载入 / 刷新</button>
+      <button class="spanbtn" type="button" title="切换半宽 / 全宽">⬒</button>
+    </h2>
+    <input type="search" id="filter" placeholder="搜索设备名 / 类别 / 实例ID…（先点「载入 / 刷新」）">
+    <div class="devices" id="devices"><div class="empty">点右上角「载入 / 刷新」读取当前在线设备</div></div>
+  </section>
+</main>
+<button id="stOpen" class="st-open" type="button" title="打开设置面板（所有配置都能在这里改，不用手工编辑 settings.json）">⚙ 设置</button>
+  <div class="st-mask" id="stMask"></div>
+  <aside class="st-drawer" id="stDrawer">
+    <div class="st-head">
+      <div class="st-title">⚙ 设置</div>
+      <button id="stReload" class="st-mini" type="button" title="重新读取当前配置（放弃未保存的修改）">重新读取</button>
+      <button id="stClose" class="st-mini" type="button" title="关闭（ESC）">✕</button>
+    </div>
+    <div class="st-body" id="stBody"><div class="empty">打开设置后自动读取配置…</div></div>
+    <div class="st-foot">
+      <span class="st-footmsg" id="stFootMsg"></span>
+      <button id="stSave" class="st-save" type="button">保存</button>
+    </div>
+  </aside>
+  <div class="st-toast" id="stToast"></div>
+<script>
+'use strict';
+var lastSeq = 0, first = true, allDevices = [], swBusy = false;
+/* 渲染差分：每秒一刷时，内容没变的面板不再重写 DOM。
+   之前每秒给 5 个面板重设 innerHTML，会触发无谓的重排重绘，是网页端 CPU 的主要来源。 */
+var __htmlCache = {};
+function setHtml(id, html){
+  if(__htmlCache[id] === html) return;
+  __htmlCache[id] = html;
+  var el = document.getElementById(id);
+  if(el) el.innerHTML = html;
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+function kindClass(k){
+  if(k==='断联'||k==='断网') return 'off';
+  if(k==='接入'||k==='重新连接'||k==='恢复'||k==='网卡连接') return 'on';
+  if(k==='故障'||k==='网卡断开') return 'warn';
+  if(k==='总线事件') return 'bus';
+  if(k==='总线恢复') return 'on';
+  if(k==='系统') return 'sys';
+  return 'net';
+}
+
+function render(s){
+  var pl = s.problemList || [], bl = s.benignList || [];
+  var pill = document.getElementById('pill');
+  if(s.netDown){ pill.className='pill bad'; pill.textContent='外网断开'; pill.title=''; }
+  else if(s.problems>0){
+    pill.className='pill warn';
+    pill.textContent = s.problems===1 ? ('⚠ '+pl[0].name+' 异常') : ('⚠ '+s.problems+' 个设备异常');
+    pill.title = pl.map(function(p){ return p.name + '：' + p.text; }).join('\n');
+  }
+  else { pill.className='pill ok'; pill.textContent='一切正常'; pill.title=''; }
+
+  // 通知开关（用户正在点击时不要覆盖它的状态）
+  var sw = document.getElementById('notifySw');
+  if(!swBusy && document.activeElement !== sw){ sw.checked = !!s.notify; }
+
+  // 设备异常面板
+  var ph = '';
+  if(!pl.length){
+    ph = '<div class="hw-big hw-ok">正常</div><div class="hw-sub">没有发现异常设备</div>';
+  } else {
+    ph = '<div class="hw-big hw-warn">' + pl.length + '</div><div class="hw-sub">个异常设备</div>';
+    for(var pi=0;pi<pl.length;pi++){
+      ph += '<div class="prob"><div class="pn">'+esc(pl[pi].name)+'</div>'
+         +  '<div class="pd">'+esc(pl[pi].cls)+' · '+esc(pl[pi].text)+'</div></div>';
+    }
+  }
+  if(bl.length){
+    ph += '<div class="plabel">已禁用（正常，不算故障）<span>' + bl.length + ' 个</span></div>';
+    for(var bi=0;bi<bl.length;bi++){
+      ph += '<div class="hw-row"><span class="hw-k" title="'+esc(bl[bi].name)+'">'+esc(bl[bi].name)+'</span><span class="hw-dim">代码 '+esc(bl[bi].code)+'</span></div>';
+    }
+  }
+  setHtml('problems', ph);
+  document.getElementById('probCount').textContent = pl.length ? ('⚠ '+pl.length+' 个') : '';
+
+  document.getElementById('mDev').textContent = s.devices;
+  document.getElementById('mEvt').textContent = s.eventCount;
+  document.getElementById('mUp').textContent  = s.uptime;
+  document.getElementById('mNow').textContent = s.now;
+
+  var ev = document.getElementById('events');
+  if(!s.events || !s.events.length){
+    setHtml('events', '<div class="empty">还没有任何设备变动。拔一个 U 盘试试。</div>');
+  } else {
+    var h = '';
+    for(var i=0;i<s.events.length;i++){
+      var e = s.events[i];
+      var isNew = !first && e.seq > lastSeq;
+      h += '<div class="ev '+kindClass(e.kind)+(isNew?' new':'')+'">'
+         + '<span class="t">'+esc(e.t)+'</span>'
+         + '<span class="k">'+esc(e.kind)+'</span>'
+         + '<span class="n">'+esc(e.label)+'</span>'
+         + '<span class="d">'+esc(e.detail||'')+'</span></div>';
+    }
+    setHtml('events', h);
+  }
+  if(s.events && s.events.length) lastSeq = Math.max(lastSeq, s.events[0].seq);
+  window.__lastState = s;
+  window.__ext = s.ext || null;
+  if(window.renderTools) window.renderTools(s);
+  window.__mode = s.mode || 'All';
+  if(document.body.getAttribute('data-mode') !== window.__mode) document.body.setAttribute('data-mode', window.__mode);
+  var _ht = document.getElementById('hTitle');
+  if(_ht) _ht.textContent = (window.__mode === 'Device') ? '外设连接监测' : (window.__mode === 'Hardware' ? '硬件状态监测' : '设备连接监控');
+
+  /* 拆分模式下告诉用户另一半在哪 —— 否则会以为"数据采集不出来" */
+  /* 运行模式开关：切换后服务端会立刻停掉/开始对应部分的采样 */
+  var _rms = document.getElementById('runModeSeg');
+  if(_rms){
+    var _rbs = _rms.getElementsByTagName('button');
+    for(var _ri = 0; _ri < _rbs.length; _ri++){
+      _rbs[_ri].className = (_rbs[_ri].getAttribute('data-rm') === window.__mode) ? 'on' : '';
+    }
+  }
+  var _mb = document.getElementById('modeBar');
+  if(_mb){
+    if(window.__mode === 'Device'){
+      _mb.style.display = '';
+      _mb.innerHTML = '当前只跑着 <b>外设监测</b> —— 只盯着设备接入/拔出，硬件采样完全停掉（几乎不占 CPU、插拔响应最快）。'
+                    + '想看温度/功耗/频率，点上面的 <b>外设+硬件</b> 或 <b>硬件</b>，会立刻开始采集。';
+    } else if(window.__mode === 'Hardware'){
+      _mb.style.display = '';
+      _mb.innerHTML = '当前只跑着 <b>硬件监测</b> —— 只看温度/功耗/频率/硬盘，设备插拔检测已停掉。'
+                    + '想记录外设插拔，点上面的 <b>外设+硬件</b> 或 <b>外设</b>。';
+    } else {
+      _mb.style.display = 'none';
+    }
+  }
+  if(s.hwMetric) window.__hwMetric = s.hwMetric;
+  if(window.renderHw) window.renderHw(s.hw);
+  document.getElementById('evCount').textContent = '(' + s.eventCount + ' 条，显示最近 ' + (s.events?s.events.length:0) + ' 条)';
+
+  var n = '';
+  n += '<div class="hw-big ' + (s.netDown ? 'hw-bad' : 'hw-ok') + '">' + esc(s.internet.state) + '</div>';
+  n += '<div class="hw-sub">互联网连通性</div>';
+  var tg = s.internet.targets || [];
+  if(tg.length){
+    n += '<div class="plabel">外网探测目标</div>';
+    n += '<div class="pings">';
+    for(var ti=0; ti<tg.length; ti++){
+      var g = tg[ti];
+      var cls = 'chip' + (g.ok ? '' : ' bad') + (g.gw ? ' gw' : '');
+      n += '<span class="'+cls+'" title="'+esc(g.t)+(g.gw?'（默认网关）':'')+'">'+esc(g.t)+'<b>'+(g.ok?(g.ms+'ms'):'超时')+'</b></span>';
+    }
+    n += '</div>';
+  }
+  for(var j=0;j<s.adapters.length;j++){
+    var a = s.adapters[j];
+    n += '<div class="hw-row"><span class="hw-k" title="'+esc(a.name)+'">'+esc(a.name)+'</span>'
+      +  '<span class="'+(a.state==='Up'?'hw-ok':'hw-dim')+'">'+esc(a.state)+(a.state==='Up'&&a.speed!=='-'?' · '+esc(a.speed):'')+'</span></div>';
+  }
+  setHtml('net', n);
+
+  if(!s.stats || !s.stats.length){
+    setHtml('stats', '<div class="hw-big hw-dim">0</div><div class="hw-sub">还没有设备断联过</div>');
+  } else {
+    var max = s.stats[0].off || 1, t = '<table><tr><th>设备</th><th class="num">断联</th><th class="num">接入</th></tr>';
+    for(var m=0;m<s.stats.length;m++){
+      var x = s.stats[m];
+      t += '<tr><td><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(x.name)+'">'+esc(x.name)+'</div>'
+        +  '<div class="bar"><i style="width:'+Math.round(100*x.off/max)+'%"></i></div></td>'
+        +  '<td class="num">'+x.off+'</td><td class="num dim">'+x.on+'</td></tr>';
+    }
+    setHtml('stats', t + '</table>');
+  }
+  first = false;
+}
+
+function renderDevices(){
+  var q = document.getElementById('filter').value.trim().toLowerCase();
+  var list = allDevices;
+  if(q){ list = allDevices.filter(function(d){
+    return (d.name+' '+d.cls+' '+d.id).toLowerCase().indexOf(q) >= 0; }); }
+  if(!list.length){ document.getElementById('devices').innerHTML = '<div class="empty">没有匹配的设备</div>'; return; }
+  var h = '';
+  for(var i=0;i<list.length;i++){
+    var d = list[i];
+    h += '<div class="dev'+(d.problem?' bad':'')+'" title="'+esc(d.id)+'">'
+      +  '<div class="dn">'+esc(d.name)+'</div>'
+      +  '<div class="dc">'+esc(d.cls)+' · '+esc(d.id)+'</div>'
+      +  (window.deviceActions ? window.deviceActions(d.id, d.name) : '')
+      +  '</div>';
+  }
+  document.getElementById('devices').innerHTML = h;
+  document.getElementById('devCount').textContent = '(' + list.length + ' / ' + allDevices.length + ' 个)';
+}
+
+async function tick(){
+  try{
+    var r = await fetch('/api/state', {cache:'no-store'});
+    if(!r.ok) throw 0;
+    render(await r.json());
+  }catch(e){
+    var p = document.getElementById('pill');
+    p.className='pill off'; p.textContent='监控未运行 / 已断开';
+  }
+}
+
+document.getElementById('notifySw').onchange = async function(){
+  var want = this.checked;
+  swBusy = true;
+  try{ await fetch('/api/notify?on=' + (want?1:0), {cache:'no-store'}); }catch(e){}
+  swBusy = false;
+};
+
+document.getElementById('btnLoad').onclick = async function(){
+  this.textContent = '读取中…';
+  try{
+    var r = await fetch('/api/devices', {cache:'no-store'});
+    allDevices = (await r.json()).devices;
+    renderDevices();
+  }catch(e){ document.getElementById('devices').innerHTML='<div class="empty">读取失败</div>'; }
+  this.textContent = '载入 / 刷新';
+};
+document.getElementById('filter').oninput = renderDevices;
+
+tick();
+setInterval(tick, 1000);
+/* =========================================================================
+   硬件监测卡 + 设置抽屉 + 设备操作按钮
+   只定义 window.renderHw / window.initSettings / window.deviceActions
+   不覆盖主程序已有的 render / tick / renderDevices 等函数
+   ========================================================================= */
+(function(){
+'use strict';
+
+var uiInit = false;     // initSettings 只绑定一次
+var stState = {};       // key -> { def, orig, val }
+var stLoaded = false;   // 设置是否已成功读取
+var stBusy = false;     // 是否有请求在飞
+var stTimer = null;     // 顶部提示条定时器
+
+/* ---------- 小工具（全部对 null / undefined 容错） ---------- */
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function isArr(v){ return Object.prototype.toString.call(v)==='[object Array]'; }
+function num(v){
+  if(v===null || v===undefined || v==='') return null;
+  if(typeof v==='boolean') return null;
+  var n = Number(v);
+  return isFinite(n) ? n : null;
+}
+function txt(v){ return (v===null || v===undefined || v==='') ? '-' : String(v); }
+function clampf(v,a,b){ return v<a ? a : (v>b ? b : v); }
+function bandCls(p){ if(p>85) return 'hw-bad'; if(p>=60) return 'hw-warn'; return 'hw-ok'; }
+function tempCls(t){
+  var n = num(t);
+  if(n===null) return 'hw-dim';
+  if(n>85) return 'hw-bad';
+  if(n>=70) return 'hw-warn';
+  return 'hw-ok';
+}
+function bar(p){
+  var n = num(p);
+  if(n===null) return '<div class="hw-bar"><i style="width:0"></i></div>';
+  var w = clampf(n,0,100);
+  return '<div class="hw-bar"><i class="'+bandCls(n)+'" style="width:'+w.toFixed(1)+'%"></i></div>';
+}
+function speed(kb){
+  var n = num(kb);
+  if(n===null) return '-';
+  if(n<0) n = 0;
+  if(n>=1024) return (n/1024).toFixed(2)+' MB/s';
+  return n.toFixed(1)+' KB/s';
+}
+function tempTxt(t){
+  var n = num(t);
+  return n===null ? '-' : n.toFixed(1)+' °C';
+}
+function coresTxt(c,t){
+  var a = num(c), b = num(t);
+  if(a===null && b===null) return '-';
+  return (a===null?'-':String(Math.round(a)))+' 核 / '+(b===null?'-':String(Math.round(b)))+' 线程';
+}
+function vramTxt(u,t){
+  var a = num(u), b = num(t);
+  if(a===null && b===null) return '-';
+  if(b!==null && b>=1024){
+    return (a===null?'-':(a/1024).toFixed(1))+' / '+(b/1024).toFixed(1)+' GB';
+  }
+  return (a===null?'-':String(Math.round(a)))+' / '+(b===null?'-':String(Math.round(b)))+' MB';
+}
+
+/* =========================================================================
+   一、硬件监测卡
+   ========================================================================= */
+function hwNum(v){ if(v===null||v===undefined||v==='') return null; var n=Number(v); return isNaN(n)?null:n; }
+function hwNz(v,suf){ if(v===null||v===undefined) return '-'; return Number(v)+(suf||''); }
+function hwAttr(s){ return String(s===null||s===undefined?'':s).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function hwRate(kb){ var n=hwNum(kb); if(n===null) return '-'; return n>=1024 ? ((Math.round(n/1024*10)/10)+' MB/s') : (Math.round(n*10)/10+' KB/s'); }
+function hwTempCls(t){ t=hwNum(t); if(t===null) return 'hw-dim'; if(t>=85) return 'hw-bad'; if(t>=65) return 'hw-warn'; return 'hw-ok'; }
+function hwLoadCls(p){ p=hwNum(p); if(p===null) return 'hw-dim'; if(p>=85) return 'hw-bad'; if(p>=60) return 'hw-warn'; return 'hw-ok'; }
+function hwTempPct(t){ t=hwNum(t); if(t===null) return 0; return Math.max(0,Math.min(100,(t-30)/70*100)); }
+function hwBlock(big, cls, pct, sub){
+  return '<div class="hw-metric"><div class="hw-big '+cls+'">'+big+'</div>'
+    + '<div class="hw-bar"><i class="'+cls+'" style="width:'+pct+'%"></i></div>'
+    + (sub?'<div class="hw-sub">'+sub+'</div>':'')+'</div>';
+}
+/* NVIDIA 的性能状态（P-State）用中文说明，别直接甩 P0 / P5 给用户 */
+/* 磁盘型号太长，卡片里放不下。去掉品牌前缀和容量后缀，只留型号。
+   例："Samsung SSD 990 PRO 2TB" -> "990 PRO" */
+function shortDisk(n){
+  if(!n) return '';
+  var s = String(n).replace(/^(ZHITAI|Samsung|Kingston|Western Digital|WDC|WD|Seagate|Crucial|Intel|KIOXIA|SK ?hynix|Micron|Toshiba|Lexar|Fanxiang|Netac|Colorful|Lenovo|Hikvision)\s+/i, '');
+  s = s.replace(/\s+\d+(\.\d+)?\s*(GB|TB)$/i, '');
+  return s;
+}
+function cnPstate(p){
+  if(!p) return '';
+  var m = /^P(\d+)$/.exec(String(p).trim());
+  if(!m) return String(p);
+  var n = parseInt(m[1], 10);
+  if(n === 0) return '满速';
+  if(n <= 4) return '高性能';
+  if(n <= 7) return '平衡';
+  return '节能';
+}
+function hwMetric(temp, load, mode){
+  var t=hwNum(temp), l=hwNum(load);
+  var tb = (t===null) ? '' : hwBlock(t+'<span class="hw-unit">°C</span>', hwTempCls(t), hwTempPct(t), '');
+  var lb = (l===null) ? '' : hwBlock(l+'<span class="hw-unit">%</span>', hwLoadCls(l), l, '');
+  if(mode==='temp') return tb || lb || '<div class="hw-empty">-</div>';
+  if(mode==='load') return lb || tb || '<div class="hw-empty">-</div>';
+  return '<div class="hw-two">'+(tb||'<div class="hw-empty">-</div>')+(lb||'<div class="hw-empty">-</div>')+'</div>';
+}
+
+/* ==========================================================================
+   指标自选：每个卡片里显示哪些行，由这里登记，用户在网页上勾选。
+   默认全开；选择存在浏览器本地（和面板布局一个机制）。
+   ========================================================================== */
+var METRICS = [
+  {g:'CPU',  id:'cpu.temp',    n:'温度 / 占用率'},
+  {g:'CPU',  id:'cpu.name',    n:'CPU 型号'},
+  {g:'CPU',  id:'cpu.freq',    n:'实时频率'},
+  {g:'CPU',  id:'cpu.power',   n:'封装功耗'},
+  {g:'CPU',  id:'cpu.ccd',     n:'CCD1 / CCD2 温度'},
+  {g:'CPU',  id:'cpu.fan',     n:'风扇转速'},
+  {g:'CPU',  id:'cpu.volt',    n:'CPU 核心电压'},
+  {g:'CPU',  id:'cpu.info',    n:'核心/线程 · 缓存'},
+  {g:'内存', id:'mem.pct',     n:'占用率'},
+  {g:'内存', id:'mem.used',    n:'已用 / 总量'},
+  {g:'内存', id:'mem.free',    n:'可用'},
+  {g:'内存', id:'mem.commit',  n:'已提交'},
+  {g:'内存', id:'mem.modules', n:'内存条型号 / 频率'},
+  {g:'内存', id:'mem.temp',    n:'内存条温度'},
+  {g:'GPU',  id:'gpu.temp',    n:'温度 / 占用率'},
+  {g:'GPU',  id:'gpu.name',    n:'GPU 型号'},
+  {g:'GPU',  id:'gpu.vram',    n:'显存已用 / 总量'},
+  {g:'GPU',  id:'gpu.power',   n:'功耗'},
+  {g:'GPU',  id:'gpu.smclk',   n:'核心频率'},
+  {g:'GPU',  id:'gpu.memclk',  n:'显存频率'},
+  {g:'GPU',  id:'gpu.extras',  n:'核心热点 / 显存结温'},
+  {g:'GPU',  id:'gpu.volt',    n:'GPU 核心电压'},
+  {g:'硬盘', id:'disk.smart',  n:'温度 / 寿命 / 通电时长'},
+  {g:'硬盘', id:'disk.nand',   n:'闪存(NAND) 温度'},
+  {g:'硬盘', id:'disk.vol',    n:'各分区剩余空间'},
+  {g:'速率', id:'io.disk',     n:'磁盘读 / 写（分盘）'},
+  {g:'速率', id:'io.net',      n:'网络收 / 发'},
+  {g:'速率', id:'io.misc',     n:'开机时长 / 电池 / 采样时间'},
+  {g:'速率', id:'io.board',    n:'主板温度'}
+];
+var VIS_KEY = 'dsh-metrics-v1';
+var HM_KEY  = 'dsh-hwmode-v1';
+
+/* 「简约」模式保留的指标 —— 一眼能看出机器状态的这些 */
+var SIMPLE_ON = ['cpu.temp','cpu.load','cpu.freq','cpu.power','cpu.ccd',
+                 'mem.pct','mem.used','mem.temp',
+                 'gpu.temp','gpu.load','gpu.vram','gpu.power','gpu.extras',
+                 'disk.smart','disk.vol','io.disk','io.net'];
+
+var hwMode = 'simple';
+try { var _hm = localStorage.getItem(HM_KEY); if(_hm === 'full' || _hm === 'simple') hwMode = _hm; } catch(e){}
+
+function visForMode(m){
+  var o = {};
+  for(var i=0;i<METRICS.length;i++){
+    o[METRICS[i].id] = (m === 'full') ? true : (SIMPLE_ON.indexOf(METRICS[i].id) >= 0);
+  }
+  return o;
+}
+
+/* 用户手动勾过就用他的选择，没勾过就按模式套预设 */
+var vis = null;
+try { var _vr = localStorage.getItem(VIS_KEY); if(_vr) vis = JSON.parse(_vr); } catch(e){ vis = null; }
+if(!vis || typeof vis !== 'object') vis = visForMode(hwMode);
+
+function mv(id){ return vis[id] !== false; }        /* 默认显示 */
+function saveVis(){ try { localStorage.setItem(VIS_KEY, JSON.stringify(vis)); } catch(e){} }
+
+function applyHwMode(m){
+  hwMode = m;
+  vis = visForMode(m);
+  try { localStorage.setItem(HM_KEY, m); } catch(e){}
+  saveVis();
+  var seg = document.getElementById('hwModeSeg');
+  if(seg){
+    var bs = seg.getElementsByTagName('button');
+    for(var k=0;k<bs.length;k++){ bs[k].className = (bs[k].getAttribute('data-hm') === m) ? 'on' : ''; }
+  }
+  buildVisPop();
+  if(window.__lastHw) window.renderHw(window.__lastHw);
+}
+
+function buildVisPop(){
+  var p = document.getElementById('visPop'); if(!p) return;
+  var groups = {}, order = [];
+  for(var i=0;i<METRICS.length;i++){
+    var m = METRICS[i];
+    if(!groups[m.g]){ groups[m.g] = []; order.push(m.g); }
+    groups[m.g].push(m);
+  }
+  var h = '';
+  for(var g=0; g<order.length; g++){
+    h += '<h4>' + esc(order[g]) + '</h4>';
+    var arr = groups[order[g]];
+    for(var k=0;k<arr.length;k++){
+      h += '<label><input type="checkbox" data-mid="' + arr[k].id + '"' + (mv(arr[k].id) ? ' checked' : '') + '>' + esc(arr[k].n) + '</label>';
+    }
+  }
+  h += '<div class="vp-foot"><button type="button" class="st-mini" data-vp="all">全选</button>'
+     + '<button type="button" class="st-mini" data-vp="none">全不选</button>'
+     + '<button type="button" class="st-mini" data-vp="reset">恢复默认</button></div>';
+  p.innerHTML = h;
+}
+
+/* 运行模式切换（外设 / 硬件 / 外设+硬件） */
+(function initRunMode(){
+  function bind(){
+    var seg = document.getElementById('runModeSeg');
+    if(!seg) return;
+    seg.addEventListener('click', function(e){
+      var el = e.target;
+      var m = el && el.getAttribute ? el.getAttribute('data-rm') : null;
+      if(!m || m === window.__mode) return;
+      var bs = seg.getElementsByTagName('button');
+      for(var i=0;i<bs.length;i++){ bs[i].disabled = true; }
+      fetch('/api/mode', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({mode:m})
+      }).then(function(r){ return r.json(); }).then(function(j){
+        for(var i=0;i<bs.length;i++){ bs[i].disabled = false; }
+        if(j && j.ok){ window.__mode = j.mode; if(window.__lastState) window.render(window.__lastState); }
+        else { alert('切换失败：' + ((j && j.err) || '未知错误')); }
+      }).catch(function(){
+        for(var i=0;i<bs.length;i++){ bs[i].disabled = false; }
+        alert('切换失败：连不上监控程序');
+      });
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
+})();
+
+(function initVis(){
+  function bind(){
+    var btn = document.getElementById('visBtn'), pop = document.getElementById('visPop');
+    var seg = document.getElementById('hwModeSeg');
+    if(seg){
+      var bs = seg.getElementsByTagName('button');
+      for(var k=0;k<bs.length;k++){ bs[k].className = (bs[k].getAttribute('data-hm') === hwMode) ? 'on' : ''; }
+      seg.addEventListener('click', function(e){
+        var el = e.target;
+        var m = el && el.getAttribute ? el.getAttribute('data-hm') : null;
+        if(m) applyHwMode(m);
+      });
+    }
+    if(!btn || !pop) return;
+    buildVisPop();
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var open = pop.style.display !== 'none';
+      if(open){ pop.style.display = 'none'; return; }
+      buildVisPop();
+      pop.style.display = '';
+    });
+    pop.addEventListener('click', function(e){
+      e.stopPropagation();
+      var el = e.target;
+      if(el && el.tagName === 'INPUT' && el.getAttribute('data-mid')){
+        vis[el.getAttribute('data-mid')] = el.checked;
+        saveVis();
+        if(window.__lastHw) window.renderHw(window.__lastHw);
+        return;
+      }
+      var vb = el && el.getAttribute ? el.getAttribute('data-vp') : null;
+      if(vb === 'all'){ vis = {}; for(var i=0;i<METRICS.length;i++) vis[METRICS[i].id] = true; }
+      else if(vb === 'none'){ for(var j=0;j<METRICS.length;j++) vis[METRICS[j].id] = false; }
+      else if(vb === 'reset'){ vis = visForMode(hwMode); }
+      else return;
+      saveVis(); buildVisPop();
+      if(window.__lastHw) window.renderHw(window.__lastHw);
+    });
+    document.addEventListener('click', function(){ pop.style.display = 'none'; });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
+})();
+
+/* ==========================================================================
+   工具卡片：设备清单 / 日志文件夹 / 开机自启
+   注意：这些内容会被每秒重绘，所以状态存在 window.__toolState 里，
+   不能直接往 DOM 里写 —— 否则下一次刷新就没了。
+   ========================================================================== */
+window.__toolState = { msg: '', cls: '', inv: '', invTitle: '' };
+
+window.renderTools = function(s){
+  var box = document.getElementById('toolsBox');
+  if(!box) return;
+  var st = window.__toolState;
+  var h = '';
+  h += '<div class="tool-row"><button class="st-mini" type="button" data-tool="inv">生成设备清单</button>'
+     + '<span class="tool-hint">读出每个设备的真实型号和厂商，比设备管理器里的｢USB 输入设备｣有用得多</span></div>';
+  h += '<div class="tool-row"><button class="st-mini" type="button" data-tool="logs">打开日志文件夹</button>'
+     + '<span class="tool-hint">在这台电脑上打开 logs 目录</span></div>';
+  h += '<div class="tool-row"><button class="st-mini" type="button" data-tool="auto">'
+     + (s.autostart ? '取消开机自启' : '安装开机自启') + '</button>'
+     + '<span class="tool-hint">' + (s.autostart ? '当前：已开启，登录时自动启动（不弹提示）' : '当前：未开启') + '</span></div>';
+  h += '<div class="tool-msg ' + st.cls + '">' + esc(st.msg) + '</div>';
+  if(st.inv){
+    h += '<div class="tool-hint" style="margin-top:8px">' + esc(st.invTitle) + '</div>';
+    h += '<div class="inv-out" style="display:block">' + esc(st.inv) + '</div>';
+  }
+  setHtml('toolsBox', h);
+};
+
+(function initTools(){
+  function setMsg(text, cls){ window.__toolState.msg = text; window.__toolState.cls = cls || ''; window.renderTools(window.__lastState || {}); }
+  function bind(){
+    document.addEventListener('click', function(e){
+      var el = e.target;
+      var t = (el && el.getAttribute) ? el.getAttribute('data-tool') : null;
+      if(!t) return;
+      e.stopPropagation();
+
+      if(t === 'logs'){
+        setMsg('正在打开…', 'busy');
+        fetch('/api/openlogs', {cache:'no-store'})
+          .then(function(r){ return r.json(); })
+          .then(function(j){ setMsg(j && j.ok ? '已在这台电脑上打开日志文件夹' : ('打开失败：' + ((j && j.err) || '未知错误')), j && j.ok ? 'ok' : 'err'); })
+          .catch(function(){ setMsg('打开失败：连不上监控程序', 'err'); });
+        return;
+      }
+
+      if(t === 'auto'){
+        var on = !(window.__lastState && window.__lastState.autostart);
+        setMsg(on ? '正在安装开机自启…' : '正在取消开机自启…', 'busy');
+        fetch('/api/autostart', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({on:on})})
+          .then(function(r){ return r.json(); })
+          .then(function(j){
+            if(j && j.ok){ setMsg(j.installed ? '已安装开机自启（最高权限计划任务，开机不弹提示）' : '已取消开机自启', 'ok'); }
+            else { setMsg('操作失败：' + ((j && j.err) || '未知错误'), 'err'); }
+          })
+          .catch(function(){ setMsg('操作失败：连不上监控程序', 'err'); });
+        return;
+      }
+
+      if(t === 'inv'){
+        setMsg('正在读取设备信息，大约需要几秒…', 'busy');
+        window.__toolState.inv = '';
+        window.renderTools(window.__lastState || {});
+        fetch('/api/inventory', {cache:'no-store'})
+          .then(function(r){ return r.json(); })
+          .then(function(j){
+            if(j && j.ok){
+              window.__toolState.inv = j.text || '';
+              window.__toolState.invTitle = '共 ' + j.count + ' 个在线设备，耗时 ' + j.ms + ' 毫秒，已存到 ' + j.file;
+              setMsg('设备清单已生成', 'ok');
+            } else { setMsg('生成失败：' + ((j && j.err) || '未知错误'), 'err'); }
+          })
+          .catch(function(){ setMsg('生成失败：连不上监控程序', 'err'); });
+        return;
+      }
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
+})();
+
+window.renderHw = function(hw){
+  window.__lastHw = hw;
+  var mode = window.__hwMetric || 'temp';
+
+  var seg = document.getElementById('hwSeg');
+  if(seg){ var bs = seg.getElementsByTagName('button');
+    for(var i=0;i<bs.length;i++){ bs[i].className = (bs[i].getAttribute('data-m')===mode) ? 'on' : ''; } }
+  var w = document.getElementById('hwWhen');
+  if(w) w.textContent = (hw && hw.LastUpdate) ? ('采样 ' + hw.LastUpdate) : '';
+
+  if(!hw){
+    var em = '<div class="empty">采集中…</div>';
+    setHtml('hwCpu', em); setHtml('hwMem', em); setHtml('hwGpu', em);
+    setHtml('hwDisk', em); setHtml('hwIo', em);
+    return;
+  }
+
+  /* ---------------- CPU ---------------- */
+  var cEx = window.__ext || {};
+  var cCpuT = cEx.cpuTemps || [], cPwr = cEx.power || [], cFan = cEx.fans || [];
+  // 提权后 LHM 的 CPU 核心温度比 WMI 热区准，优先用它
+  var cMain = hwNum(hw.CpuTempC);
+  for(var cx = 0; cx < cCpuT.length; cx++){ if(/CPU 核心|Tctl/i.test(cCpuT[cx].name)){ cMain = cCpuT[cx].value; break; } }
+  var c = '<div class="hw-box">';
+  if(mv('cpu.temp') || mv('cpu.load')) c += hwMetric(mv('cpu.temp') ? cMain : null, mv('cpu.load') ? hw.CpuPct : null, mode);
+  if(mv('cpu.name')) c += '<div class="hw-sub hw-wrap" title="' + hwAttr(hw.CpuName) + '">' + esc(hw.CpuName || '-') + '</div>';
+  if(mv('cpu.freq')) c += '<div class="hw-row"><span class="hw-k">实时频率</span><span class="hw-ok">' + (hw.CpuCurMHz ? (Math.round(hw.CpuCurMHz) + ' MHz') : '-') + '</span></div>';
+  if(mv('cpu.power')){
+    for(var cp2 = 0; cp2 < cPwr.length; cp2++){
+      c += '<div class="hw-row"><span class="hw-k">' + esc(cPwr[cp2].name) + ' 功耗</span><span class="hw-warn">' + cPwr[cp2].value + ' W</span></div>';
+    }
+  }
+  if(mv('cpu.ccd')){
+    // CCD 是 CPU 里的核心复合体（一个 CCD 装 8 个核）。分开看能判断是哪个 CCD 在发热。
+    for(var ct2 = 0; ct2 < cCpuT.length; ct2++){
+      if(/^CCD\d+$/.test(cCpuT[ct2].name)){
+        c += '<div class="hw-row"><span class="hw-k">' + esc(cCpuT[ct2].name) + '</span><span class="' + hwTempCls(cCpuT[ct2].value) + '">' + cCpuT[ct2].value + ' °C</span></div>';
+      }
+    }
+  }
+  if(mv('cpu.fan')){
+    for(var cf2 = 0; cf2 < cFan.length; cf2++){
+      c += '<div class="hw-row"><span class="hw-k">' + esc(cFan[cf2].name) + '</span><span>' + Math.round(cFan[cf2].value) + ' rpm</span></div>';
+    }
+  }
+  if(mv('cpu.volt')){
+    var cVolt = cEx.volts || [];
+    for(var cv2 = 0; cv2 < cVolt.length; cv2++){
+      if(/CPU/.test(cVolt[cv2].name)) c += '<div class="hw-row"><span class="hw-k">' + esc(cVolt[cv2].name) + '</span><span>' + cVolt[cv2].value + ' V</span></div>';
+    }
+  }
+  if(mv('cpu.info')){
+    var cInfo = (hw.CpuCores ? (hw.CpuCores + ' 核 / ' + hw.CpuThreads + ' 线程') : '');
+    if(hw.CpuL3MB) cInfo += ' · L2 ' + hw.CpuL2MB + 'M · L3 ' + hw.CpuL3MB + 'M';
+    if(cInfo) c += '<div class="hw-sub">' + esc(cInfo) + '</div>';
+  }
+  c += '</div>';
+  setHtml('hwCpu', c);
+
+  /* ---------------- 内存 ---------------- */
+  var mp = hwNum(hw.MemPct);
+  var m = '<div class="hw-box">';
+  if(mv('mem.pct')) m += hwBlock((mp === null ? '-' : mp) + '<span class="hw-unit">%</span>', hwLoadCls(mp), (mp === null ? 0 : mp), '');
+  if(mv('mem.used')) m += '<div class="hw-row"><span class="hw-k">已用 / 总量</span><span>' + hwNz(hw.MemUsedGB) + ' / ' + hwNz(hw.MemTotalGB) + ' GB</span></div>';
+  if(mv('mem.free')) m += '<div class="hw-row"><span class="hw-k">可用</span><span>' + hwNz(hw.MemFreeGB) + ' GB</span></div>';
+  if(mv('mem.commit') && hw.MemCommitMaxGB) m += '<div class="hw-row"><span class="hw-k" title="程序申请的内存总量，含页面文件；接近上限会开始大量读写页面文件">已提交</span><span>' + hwNz(hw.MemCommitGB) + ' / ' + hwNz(hw.MemCommitMaxGB) + ' GB</span></div>';
+  var mm = hw.MemModules || [];
+  if(mv('mem.modules') && mm.length){
+    var mtot = 0;
+    for(var mi = 0; mi < mm.length; mi++){ mtot += (hwNum(mm[mi].sizeGB) || 0); }
+    m += '<div class="hw-sub" style="margin-top:6px">' + mm.length + ' 条 · 共 ' + mtot + ' GB';
+    if(mm[0].rated && mm[0].rated !== mm[0].speed) m += ' · ' + mm[0].rated + ' MT/s（运行 ' + mm[0].speed + '）';
+    else if(mm[0].speed) m += ' · ' + mm[0].speed + ' MT/s';
+    if(mm.length > 1) m += ' · 双通道';
+    m += '</div>';
+    for(var mj = 0; mj < mm.length; mj++){
+      m += '<div class="hw-row"><span class="hw-k" title="' + hwAttr(mm[mj].slot) + '">' + esc(mm[mj].part || mm[mj].mfg || '内存条') + '</span><span class="hw-dim">' + hwNz(mm[mj].sizeGB) + ' GB</span></div>';
+    }
+  }
+  if(mv('mem.temp')){
+    var exm = (window.__ext && window.__ext.memoryTemps) ? window.__ext.memoryTemps : [];
+    if(exm.length){
+      for(var mk = 0; mk < exm.length; mk++){
+        m += '<div class="hw-row"><span class="hw-k">' + esc(exm[mk].name) + '</span><span class="' + hwTempCls(exm[mk].value) + '">' + exm[mk].value + ' °C</span></div>';
+      }
+      m += '<div class="hw-sub">内存温度来自内存条 SPD 传感器</div>';
+    } else if(mm.length){
+      m += '<div class="hw-sub">内存温度属于低层传感器，需要管理员权限</div>';
+    }
+  }
+  m += '</div>';
+  setHtml('hwMem', m);
+
+  /* ---------------- GPU ---------------- */
+  if(hw.GpuName){
+    var g = '<div class="hw-box">';
+    if(mv('gpu.temp') || mv('gpu.load')) g += hwMetric(mv('gpu.temp') ? hw.GpuTempC : null, mv('gpu.load') ? hw.GpuUtilPct : null, mode);
+    if(mv('gpu.name')) g += '<div class="hw-sub hw-wrap" title="' + hwAttr(hw.GpuName) + '">' + esc(hw.GpuName) + (hw.GpuPstate ? '　<span class="hw-dim">' + esc(cnPstate(hw.GpuPstate)) + '</span>' : '') + '</div>';
+    var gUsed = hwNum(hw.GpuMemUsedMB), gTot = hwNum(hw.GpuMemTotalMB);
+    var gFill = (gUsed !== null && gTot) ? Math.round(gUsed / gTot * 100) : null;
+    if(mv('gpu.vram') && gTot !== null) g += '<div class="hw-row"><span class="hw-k">显存</span><span>' + hwNz(gUsed) + '/' + hwNz(gTot) + ' MB' + (gFill !== null ? ' (' + gFill + '%)' : '') + '</span></div>';
+    if(mv('gpu.power') && hwNum(hw.GpuPowerW) !== null) g += '<div class="hw-row"><span class="hw-k">功耗</span><span>' + hwNz(hw.GpuPowerW) + (hwNum(hw.GpuPowerMaxW) !== null ? ' / ' + hwNz(hw.GpuPowerMaxW) : '') + ' W</span></div>';
+    if(mv('gpu.smclk') && hwNum(hw.GpuClockMHz) !== null) g += '<div class="hw-row"><span class="hw-k">核心频率</span><span>' + hwNz(hw.GpuClockMHz) + ' MHz</span></div>';
+    if(mv('gpu.memclk') && hwNum(hw.GpuMemClockMHz) !== null) g += '<div class="hw-row"><span class="hw-k">显存频率</span><span>' + hwNz(hw.GpuMemClockMHz) + ' MHz</span></div>';
+    if(mv('gpu.volt')){
+      var gVolt = (window.__ext && window.__ext.volts) ? window.__ext.volts : [];
+      for(var gv2 = 0; gv2 < gVolt.length; gv2++){
+        if(/GPU/.test(gVolt[gv2].name)) g += '<div class="hw-row"><span class="hw-k">' + esc(gVolt[gv2].name) + '</span><span>' + gVolt[gv2].value + ' V</span></div>';
+      }
+    }
+    if(mv('gpu.extras')){
+      var gGpuT = (window.__ext && window.__ext.gpuTemps) ? window.__ext.gpuTemps : [];
+      for(var gt = 0; gt < gGpuT.length; gt++){
+        g += '<div class="hw-row"><span class="hw-k">' + esc(gGpuT[gt].name) + '</span><span class="' + hwTempCls(gGpuT[gt].value) + '">' + gGpuT[gt].value + ' °C</span></div>';
+      }
+    }
+    g += '</div>';
+    setHtml('hwGpu', g);
+  } else {
+    setHtml('hwGpu', '<div class="hw-box"><div class="hw-empty">未检测到独立显卡</div></div>');
+  }
+
+  /* ---------------- 硬盘 ---------------- */
+  var smMap = {};
+  for(var si = 0; si < (hw.DriveSmart || []).length; si++){ var sx = hw.DriveSmart[si]; smMap[String(sx.pnum)] = sx; }
+  var ord = [], by = {}, disks = hw.Disks || [];
+  for(var di = 0; di < disks.length; di++){
+    var dd = disks[di];
+    var k = (dd.pnum === null || dd.pnum === undefined || dd.pnum < 0) ? 'x' : String(dd.pnum);
+    if(!by[k]){ by[k] = {model:'', items:[]}; ord.push(k); }
+    by[k].items.push(dd);
+    if(dd.phys) by[k].model = dd.phys;
+  }
+  var d = '<div class="hw-box">';
+  if(!ord.length) d += '<div class="hw-empty">-</div>';
+  for(var oi = 0; oi < ord.length; oi++){
+    var gg = by[ord[oi]], smv = smMap[ord[oi]];
+    var showHead = (gg.model || smv) && mv('disk.smart');
+    var showVol = mv('disk.vol');
+    if(!showHead && !showVol) continue;
+    d += '<div class="hw-disk">';
+    if(showHead){
+      var extra = '';
+      if(smv){
+        extra += ' <span class="hw-temp ' + hwTempCls(smv.tempC) + '">' + smv.tempC + '°C</span>';
+        if(mv('disk.nand') && smv.temp2) extra += ' <span class="hw-dim">闪存 ' + smv.temp2 + '°C</span>';
+        if(smv.used !== null && smv.used !== undefined) extra += ' <span class="hw-dim">已用寿命 ' + smv.used + '%</span>';
+        if(smv.hours) extra += ' <span class="hw-dim">通电 ' + Math.round(smv.hours) + ' 小时</span>';
+      }
+      d += '<div class="hw-dk">' + esc(gg.model || ('磁盘 #' + (oi + 1))) + extra + '</div>';
+    }
+    if(showVol){
+      for(var vi = 0; vi < gg.items.length; vi++){
+        var v = gg.items[vi], vp = hwNum(v.pct);
+        d += '<div class="hw-vol"><span class="hw-drv">' + esc(v.m) + '</span>'
+           + '<div class="hw-bar"><i class="' + hwLoadCls(vp) + '" style="width:' + (vp === null ? 0 : vp) + '%"></i></div>'
+           + '<span class="hw-volt">' + hwNz(v.freeGB) + ' / ' + hwNz(v.totalGB) + ' GB 剩</span></div>';
+      }
+    }
+    d += '</div>';
+  }
+  d += '</div>';
+  setHtml('hwDisk', d);
+
+  /* ---------------- 速率 / 其他 ---------------- */
+  var ex = window.__ext || {};
+  var o = '<div class="hw-box">';
+  if(mv('io.disk')){
+    var dio = hw.DiskIo || [];
+    if(dio.length > 0){
+      // 每块物理磁盘分开显示 —— 一眼看出是哪块盘在读写
+      var pname = {};
+      var dlist = hw.Disks || [];
+      for(var dp = 0; dp < dlist.length; dp++){
+        if(dlist[dp].pnum !== null && dlist[dp].pnum !== undefined && dlist[dp].pnum >= 0 && dlist[dp].phys){
+          pname[String(dlist[dp].pnum)] = dlist[dp].phys;
+        }
+      }
+      for(var dq = 0; dq < dio.length; dq++){
+        var full = pname[String(dio[dq].pnum)] || ('磁盘 #' + (dio[dq].pnum + 1));
+        o += '<div class="hw-row"><span class="hw-k" title="' + hwAttr(full) + '">' + esc(shortDisk(full)) + '</span>'
+           + '<span>读 ' + hwRate(dio[dq].readKB) + ' · 写 ' + hwRate(dio[dq].writeKB) + '</span></div>';
+      }
+      o += '<div class="hw-row"><span class="hw-k">合计</span><span class="hw-dim">读 ' + hwRate(hw.DiskReadKB) + ' · 写 ' + hwRate(hw.DiskWriteKB) + '</span></div>';
+    } else {
+      o += '<div class="hw-row"><span class="hw-k">磁盘读</span><span>' + hwRate(hw.DiskReadKB) + '</span></div>';
+      o += '<div class="hw-row"><span class="hw-k">磁盘写</span><span>' + hwRate(hw.DiskWriteKB) + '</span></div>';
+    }
+  }
+  if(mv('io.net')){
+    o += '<div class="hw-row"><span class="hw-k">网络收</span><span>' + hwRate(hw.NetRxKB) + '</span></div>';
+    o += '<div class="hw-row"><span class="hw-k">网络发</span><span>' + hwRate(hw.NetTxKB) + '</span></div>';
+  }
+  if(mv('io.board')){
+    var bds = ex.boardTemps || [];
+    for(var bi2 = 0; bi2 < bds.length; bi2++){
+      o += '<div class="hw-row"><span class="hw-k">' + esc(bds[bi2].name) + '</span><span class="' + hwTempCls(bds[bi2].value) + '">' + bds[bi2].value + ' °C</span></div>';
+    }
+  }
+  if(mv('io.misc')){
+    o += '<div class="hw-row"><span class="hw-k">开机时长</span><span>' + esc(hw.Uptime || '-') + '</span></div>';
+    if(hw.BatPct != null) o += '<div class="hw-row"><span class="hw-k">电池</span><span>' + hw.BatPct + ' % ' + (hw.OnAC ? '接电源' : '用电池') + '</span></div>';
+    o += '<div class="hw-row"><span class="hw-k">采样时间</span><span class="hw-dim">' + esc(hw.LastUpdate || '-') + '</span></div>';
+  }
+  o += '</div>';
+  setHtml('hwIo', o);
+};
+
+/* =========================================================================
+   二、设置抽屉
+   ========================================================================= */
+function stKey(k){ return String(k==null?'':k).replace(/[^0-9A-Za-z_]/g,'_'); }
+function stListId(k){ return 'stList_'+stKey(k); }
+function stSwId(k){ return 'stSw_'+stKey(k); }
+function stNumId(k){ return 'stNum_'+stKey(k); }
+function stSelId(k){ return 'stSel_'+stKey(k); }
+function stTxtId(k){ return 'stTxt_'+stKey(k); }
+
+function stClone(v){
+  if(v===null || v===undefined) return v;
+  if(isArr(v)){
+    var a = [];
+    for(var i=0;i<v.length;i++) a.push(v[i]);
+    return a;
+  }
+  if(typeof v==='object'){
+    var o = {};
+    for(var k in v){ if(Object.prototype.hasOwnProperty.call(v,k)) o[k] = v[k]; }
+    return o;
+  }
+  return v;
+}
+function stArr(v){
+  var out = [];
+  if(isArr(v)){
+    for(var i=0;i<v.length;i++) out.push(String(v[i]));
+  } else if(v!==null && v!==undefined && v!==''){ out.push(String(v)); }
+  return out;
+}
+function stEq(a,b){
+  var aa = isArr(a), bb = isArr(b);
+  if(aa || bb){
+    if(!aa || !bb) return false;
+    if(a.length!==b.length) return false;
+    for(var i=0;i<a.length;i++){ if(String(a[i])!==String(b[i])) return false; }
+    return true;
+  }
+  if(typeof a==='boolean' || typeof b==='boolean') return !!a===!!b;
+  var na = num(a), nb = num(b);
+  if(na!==null && nb!==null) return na===nb;
+  return String(a===null||a===undefined?'':a)===String(b===null||b===undefined?'':b);
+}
+function stClosest(node, root, cls){
+  while(node && node!==root){
+    if(node.nodeType===1 && typeof node.className==='string' && (' '+node.className+' ').indexOf(' '+cls+' ')>=0) return node;
+    node = node.parentNode;
+  }
+  return null;
+}
+function stToast(kind, lines, ms){
+  var t = document.getElementById('stToast');
+  if(!t) return;
+  t.className = 'st-toast on st-'+kind;
+  t.innerHTML = lines.join('');
+  if(stTimer){ clearTimeout(stTimer); stTimer = null; }
+  if(ms && ms>0){
+    stTimer = setTimeout(function(){ t.className = 'st-toast st-'+kind; }, ms);
+  }
+}
+
+/* ---- 控件 HTML ---- */
+function stChipsHtml(k, arr){
+  if(!arr.length) return '<span class="st-dim">（空）</span>';
+  var h = '';
+  for(var i=0;i<arr.length;i++){
+    h += '<span class="st-chip">'+esc(arr[i])
+       + '<button type="button" class="st-x" data-stdel="'+esc(k)+'" data-sti="'+i+'" title="删除这一项">×</button></span>';
+  }
+  return h;
+}
+function stListHtml(k, arr){
+  return '<div class="st-chips" id="'+stListId(k)+'">'+stChipsHtml(k,arr)+'</div>'
+    + '<div class="st-addrow"><input type="text" class="st-txt" data-staddin="'+esc(k)+'" placeholder="新增一项…">'
+    + '<button type="button" class="st-addbtn" data-stadd="'+esc(k)+'">添加</button></div>';
+}
+function stCtrlHtml(it,k,v){
+  var t = String((it && it.t) || 'bool').toLowerCase();
+  if(t==='bool'){
+    var on = !!v;
+    return '<label class="st-sw"><input type="checkbox" id="'+stSwId(k)+'" data-stk="'+esc(k)+'"'+(on?' checked':'')+'>'
+      + '<span class="st-sl"></span><span class="st-swtxt">'+(on?'已开启':'已关闭')+'</span></label>';
+  }
+  if(t==='int' || t==='double'){
+    var step = (t==='double') ? '0.1' : '1';
+    var s = '<input type="number" class="st-num" id="'+stNumId(k)+'" data-stk="'+esc(k)+'" step="'+step+'"';
+    var mn = num(it.min), mx = num(it.max);
+    if(mn!==null) s += ' min="'+mn+'"';
+    if(mx!==null) s += ' max="'+mx+'"';
+    var nv = num(v);
+    s += ' value="'+(nv===null?'':nv)+'">';
+    if(it.unit) s += '<span class="st-unit">'+esc(it.unit)+'</span>';
+    return s;
+  }
+  if(t==='enum'){
+    var opts = isArr(it.opts) ? it.opts : [];
+    var h = '<select class="st-sel" id="'+stSelId(k)+'" data-stk="'+esc(k)+'">';
+    var found = false;
+    for(var i=0;i<opts.length;i++){
+      var o = String(opts[i]);
+      var sel = (v!==null && v!==undefined && String(v)===o);
+      if(sel) found = true;
+      h += '<option value="'+esc(o)+'"'+(sel?' selected':'')+'>'+esc(o)+'</option>';
+    }
+    if(!found && v!==null && v!==undefined && v!==''){
+      h += '<option value="'+esc(v)+'" selected>'+esc(v)+'</option>';
+    }
+    return h + '</select>';
+  }
+  if(t==='list') return stListHtml(k, stArr(v));
+  return '<input type="text" class="st-txt" id="'+stTxtId(k)+'" data-stk="'+esc(k)+'" value="'+esc(v===null||v===undefined?'':v)+'">';
+}
+function stItemHtml(it){
+  if(!it || it.k===null || it.k===undefined) return '';
+  var k = String(it.k);
+  stState[k] = { def: it, orig: stClone(it.v), val: stClone(it.v) };
+  var h = '<div class="st-item">';
+  h += '<div class="st-lbl">'+esc(it.label || k);
+  if(it.unit) h += '<span class="st-unit">'+esc(it.unit)+'</span>';
+  if(it.restart===true) h += '<span class="st-restart">重启后生效</span>';
+  h += '</div>';
+  if(it.hint) h += '<div class="st-hint">'+esc(it.hint)+'</div>';
+  h += '<div class="st-ctl">'+stCtrlHtml(it,k,it.v)+'</div>';
+  h += '</div>';
+  return h;
+}
+function stRenderBody(groups){
+  stState = {};
+  var h = '';
+  for(var gi=0; gi<groups.length; gi++){
+    var g = groups[gi] || {};
+    var items = isArr(g.items) ? g.items : [];
+    h += '<div class="st-group"><div class="st-gname">'+esc(g.name || ('分组 '+(gi+1)))+'</div>';
+    for(var ii=0; ii<items.length; ii++) h += stItemHtml(items[ii]);
+    h += '</div>';
+  }
+  if(!h) h = '<div class="empty">没有可配置项</div>';
+  return h;
+}
+
+/* ---- 读值 / 脏检查 ---- */
+function stRead(k){
+  var st = stState[k];
+  if(!st) return undefined;
+  var t = String((st.def && st.def.t) || 'bool').toLowerCase();
+  if(t==='list') return stClone(st.val);
+  if(t==='bool'){
+    var e = document.getElementById(stSwId(k));
+    return e ? !!e.checked : undefined;
+  }
+  if(t==='int' || t==='double'){
+    var n = document.getElementById(stNumId(k));
+    if(!n) return undefined;
+    var s = String(n.value).replace(/\s+/g,'');
+    if(s==='') return undefined;
+    var f = parseFloat(s);
+    if(!isFinite(f)) return undefined;
+    var mn = num(st.def.min), mx = num(st.def.max);
+    if(mn!==null && f<mn) f = mn;
+    if(mx!==null && f>mx) f = mx;
+    return (t==='int') ? Math.round(f) : f;
+  }
+  if(t==='enum'){
+    var se = document.getElementById(stSelId(k));
+    return se ? String(se.value) : undefined;
+  }
+  var tx = document.getElementById(stTxtId(k));
+  return tx ? String(tx.value) : undefined;
+}
+function stDirtyList(){
+  var out = [];
+  for(var k in stState){
+    if(!Object.prototype.hasOwnProperty.call(stState,k)) continue;
+    var cur = stRead(k);
+    if(cur===undefined) continue;
+    if(!stEq(cur, stState[k].orig)) out.push(k);
+  }
+  return out;
+}
+function stMarkDirty(){
+  var el = document.getElementById('stFootMsg');
+  if(!el) return;
+  if(!stLoaded){ el.className='st-footmsg'; el.textContent=''; return; }
+  var n = stDirtyList().length;
+  el.className = 'st-footmsg' + (n ? ' st-dirty' : '');
+  el.textContent = n ? ('有 '+n+' 项修改未保存') : '没有未保存的修改';
+}
+
+/* ---- 读取 ---- */
+async function stLoad(force){
+  var body = document.getElementById('stBody');
+  if(stBusy) return;
+  if(stLoaded && !force) return;
+  stBusy = true;
+  if(body) body.innerHTML = '<div class="empty">读取配置中…</div>';
+  try{
+    var r = await fetch('/api/settings', {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var res = await r.json();
+    var groups = null;
+    if(isArr(res)) groups = res;
+    else if(res && isArr(res.groups)) groups = res.groups;
+    if(!groups){
+      stLoaded = false;
+      if(body) body.innerHTML = '<div class="empty">配置读取失败：返回格式不对</div>';
+    } else {
+      if(body) body.innerHTML = stRenderBody(groups);
+      stLoaded = true;
+    }
+  }catch(e){
+    stLoaded = false;
+    var msg = (e && e.message) ? e.message : '未知错误';
+    if(body) body.innerHTML = '<div class="empty">配置读取失败：'+esc(msg)+'<br>（主程序需要先提供 /api/settings）</div>';
+  }
+  stBusy = false;
+  stMarkDirty();
+}
+
+/* ---- 保存 ---- */
+async function stSave(){
+  var btn = document.getElementById('stSave');
+  if(stBusy) return;
+  if(!stLoaded){ stToast('warn',['<div>配置还没读取成功</div>'],2500); return; }
+  var keys = stDirtyList();
+  if(!keys.length){ stToast('warn',['<div>没有需要保存的修改</div>'],2000); return; }
+  var body = {};
+  for(var i=0;i<keys.length;i++) body[keys[i]] = stRead(keys[i]);
+
+  stBusy = true;
+  var oldTxt = btn ? btn.textContent : '保存';
+  if(btn){ btn.disabled = true; btn.textContent = '保存中…'; }
+  try{
+    var r = await fetch('/api/settings', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    var text = await r.text();
+    var res = null;
+    try{ res = JSON.parse(text); }catch(e1){ res = null; }
+    if(!r.ok || !res || res.ok!==true){
+      var em = (res && res.error) ? String(res.error) : ('HTTP '+r.status);
+      stToast('bad',['<div>保存失败：'+esc(em)+'</div>'],8000);
+    } else {
+      var applied = isArr(res.applied) ? res.applied : [];
+      var errs = isArr(res.errors) ? res.errors : [];
+      var nr = isArr(res.needRestart) ? res.needRestart : [];
+      for(var a=0;a<applied.length;a++){
+        var ak = String(applied[a]);
+        if(Object.prototype.hasOwnProperty.call(stState,ak)){
+          var cv = stRead(ak);
+          if(cv!==undefined) stState[ak].orig = stClone(cv);
+        }
+      }
+      var lines = [];
+      if(errs.length){
+        lines.push('<div>保存完成，但有 '+errs.length+' 项失败</div>');
+        for(var ei=0;ei<errs.length;ei++) lines.push('<div class="st-terr">'+esc(errs[ei])+'</div>');
+      } else {
+        lines.push('<div>✓ 已保存：'+esc(keys.join('、'))+'</div>');
+      }
+      if(nr.length){
+        var ns = [];
+        for(var ni=0;ni<nr.length;ni++) ns.push(String(nr[ni]));
+        lines.push('<div class="st-twarn">⚠ 这些项需要重启监控才生效：'+esc(ns.join('、'))+'</div>');
+      }
+      var kind = errs.length ? 'bad' : 'ok';
+      stToast(kind, lines, errs.length ? 8000 : (nr.length ? 5000 : 2000));
+      stMarkDirty();
+    }
+  }catch(e){
+    var m2 = (e && e.message) ? e.message : '网络错误';
+    stToast('bad',['<div>保存失败：'+esc(m2)+'</div>'],8000);
+  }
+  stBusy = false;
+  if(btn){ btn.disabled = false; btn.textContent = oldTxt || '保存'; }
+}
+
+/* ---- 列表增删 ---- */
+function stRefreshList(k){
+  var c = document.getElementById(stListId(k));
+  if(!c || !stState[k]) return;
+  c.innerHTML = stChipsHtml(k, stArr(stState[k].val));
+}
+function stDelItem(k, i){
+  if(!k || !Object.prototype.hasOwnProperty.call(stState,k)) return;
+  var arr = stArr(stState[k].val);
+  var idx = parseInt(i,10);
+  if(isNaN(idx) || idx<0 || idx>=arr.length) return;
+  arr.splice(idx,1);
+  stState[k].val = arr;
+  stRefreshList(k);
+  stMarkDirty();
+}
+function stAddItem(k, inputEl){
+  if(!k || !Object.prototype.hasOwnProperty.call(stState,k)) return;
+  var el = inputEl;
+  if(!el){
+    var c = document.getElementById(stListId(k));
+    if(c && c.parentNode) el = c.parentNode.querySelector('.st-txt');
+  }
+  var v = el ? String(el.value||'').replace(/^\s+|\s+$/g,'') : '';
+  if(!v){ if(el) el.focus(); return; }
+  var arr = stArr(stState[k].val);
+  for(var i=0;i<arr.length;i++){
+    if(arr[i]===v){ if(el) el.value=''; return; }
+  }
+  arr.push(v);
+  stState[k].val = arr;
+  if(el) el.value = '';
+  stRefreshList(k);
+  stMarkDirty();
+}
+
+/* ---- 打开 / 关闭 / 事件绑定 ---- */
+function stOpenDrawer(){
+  var d = document.getElementById('stDrawer');
+  var m = document.getElementById('stMask');
+  if(d) d.className = 'st-drawer on';
+  if(m) m.className = 'st-mask on';
+  if(!stLoaded && !stBusy) stLoad(false);
+  stMarkDirty();
+}
+function stCloseDrawer(){
+  var d = document.getElementById('stDrawer');
+  var m = document.getElementById('stMask');
+  if(d) d.className = 'st-drawer';
+  if(m) m.className = 'st-mask';
+}
+function stDelegClick(e, root){
+  var del = stClosest(e.target, root, 'st-x');
+  if(del){
+    e.preventDefault();
+    stDelItem(del.getAttribute('data-stdel'), del.getAttribute('data-sti'));
+    return;
+  }
+  var add = stClosest(e.target, root, 'st-addbtn');
+  if(add){
+    e.preventDefault();
+    var box = add.parentNode ? add.parentNode.querySelector('.st-txt') : null;
+    stAddItem(add.getAttribute('data-stadd'), box);
+  }
+}
+function stDelegChange(e){
+  var el = e.target;
+  if(!el || !el.getAttribute) return;
+  var k = el.getAttribute('data-stk');
+  if(k===null || k===undefined) return;
+  if(el.type==='checkbox'){
+    var sp = el.parentNode ? el.parentNode.querySelector('.st-swtxt') : null;
+    if(sp) sp.textContent = el.checked ? '已开启' : '已关闭';
+  }
+  stMarkDirty();
+}
+function stDelegKey(e){
+  var kc = e.keyCode || 0;
+  if(kc!==13) return;
+  var el = e.target;
+  if(!el || !el.getAttribute) return;
+  var av = el.getAttribute('data-staddin');
+  if(av===null || av===undefined) return;
+  e.preventDefault();
+  stAddItem(av, el);
+}
+
+/* =========================================================================
+   三、在线设备列表的操作按钮
+   ========================================================================= */
+window.deviceActions = function(id, name){
+  var pat = '*' + String(id===null||id===undefined?'':id) + '*';
+  var a = esc(pat);
+  var tip = esc(name===null||name===undefined?'':name);
+  return '<button type="button" class="dact" data-act="focus" data-pat="'+a+'" title="把『'+tip+'』加入重点关注">关注</button>'
+    + '<button type="button" class="dact" data-act="ignore" data-pat="'+a+'" title="把『'+tip+'』加入忽略名单（不再告警）">忽略</button>';
+};
+async function devDelegClick(e, root){
+  var btn = stClosest(e.target, root, 'dact');
+  if(!btn) return;
+  var act = btn.getAttribute('data-act');
+  var pat = btn.getAttribute('data-pat');
+  if(!act || !pat || btn.disabled) return;
+  var old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '处理中…';
+  try{
+    var r = await fetch('/api/rule?kind='+encodeURIComponent(act)+'&pattern='+encodeURIComponent(pat), {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    btn.textContent = (act==='ignore') ? '已忽略' : '已关注';
+    btn.className = 'dact done';
+  }catch(err){
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+/* =========================================================================
+   四、初始化（只绑定一次）
+   ========================================================================= */
+window.initSettings = function(){
+  if(uiInit) return;
+  uiInit = true;
+
+  /* 「⚙ 设置」按钮放进 header；HTML 块可能被插在 main 里，这里自动搬一次 */
+  var openBtn = document.getElementById('stOpen');
+  var hd = document.querySelector('header');
+  if(openBtn && hd && openBtn.parentNode!==hd){
+    var meta = hd.querySelector('.meta');
+    if(meta) hd.insertBefore(openBtn, meta); else hd.appendChild(openBtn);
+  }
+  if(openBtn){
+    openBtn.style.visibility = 'visible';
+    openBtn.onclick = function(){ stOpenDrawer(); };
+  }
+  var cl = document.getElementById('stClose');
+  if(cl) cl.onclick = function(){ stCloseDrawer(); };
+  var mk = document.getElementById('stMask');
+  if(mk) mk.onclick = function(){ stCloseDrawer(); };
+  var sv = document.getElementById('stSave');
+  if(sv) sv.onclick = function(){ stSave(); };
+  var rl = document.getElementById('stReload');
+  if(rl) rl.onclick = function(){
+    stLoaded = false;
+    stLoad(true);
+  };
+
+  document.addEventListener('keydown', function(e){
+    var kc = e.keyCode || 0;
+    if(e.key==='Escape' || kc===27) stCloseDrawer();
+  });
+
+  var dr = document.getElementById('stDrawer');
+  if(dr){
+    dr.addEventListener('click', function(e){ stDelegClick(e, dr); });
+    dr.addEventListener('change', function(e){ stDelegChange(e); });
+    dr.addEventListener('input', function(e){ stMarkDirty(); });
+    dr.addEventListener('keydown', function(e){ stDelegKey(e); });
+  }
+
+  /* 设备列表会被反复重绘，所以用事件委托绑在容器上，只绑一次 */
+  var dvs = document.getElementById('devices');
+  if(dvs) dvs.addEventListener('click', function(e){ devDelegClick(e, dvs); });
+
+  stLoad(false);   /* 预加载，打开抽屉时就不用等 */
+};
+
+/* 主程序可能在 JS 块之前就调用了 initSettings()，这里兜底补一次；重复调用会被 uiInit 拦住 */
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', function(){ window.initSettings(); });
+} else {
+  window.initSettings();
+}
+})();
+/* ==== 硬件监测 / 设置抽屉 / 设备按钮 结束 ==== */
+/* ---------- 面板布局：拖动排序 + 半宽/全宽 + 记住选择 ---------- */
+(function(){
+  var KEY='dsh-layout-v4';   /* 卡片宽度改成统一 4 列，旧布局作废 */   /* 布局结构改过，旧键作废，避免残留的旧顺序把页面撑空 */
+  var DEF_ORDER=['hw-cpu','hw-mem','hw-gpu','hw-disk','hw-io','net','problems','events','stats','tools','devices'];
+  var DEF_SPAN={'hw-cpu':4,'hw-mem':4,'hw-gpu':4,'hw-disk':4,'hw-io':4,net:4,problems:4,events:4,stats:4,tools:4,devices:12};   /* 统一 4 列：一行 3 张，9 张正好铺满 3 行 */
+  var lay={order:DEF_ORDER.slice(),span:{}};
+  try{ var raw=localStorage.getItem(KEY); if(raw){ var o=JSON.parse(raw); if(o&&o.order&&o.order.length) lay=o; } }catch(e){}
+  if(!lay.span) lay.span={};
+  if(!lay.hidden) lay.hidden={};
+
+  function dashEl(){ return document.getElementById('dash'); }
+  function cards(){ var d=dashEl(); return d?Array.prototype.slice.call(d.querySelectorAll('.pnl')):[]; }
+  function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(lay)); }catch(e){} }
+  function clearOver(){ for(var i=0;i<cards().length;i++) cards()[i].classList.remove('over'); }
+  function applyOrder(){
+    var d=dashEl(); if(!d) return;
+    var ord=lay.order.slice();
+    for(var i=0;i<DEF_ORDER.length;i++){ if(ord.indexOf(DEF_ORDER[i])<0) ord.push(DEF_ORDER[i]); }
+    for(var j=0;j<ord.length;j++){
+      var el=d.querySelector('.pnl[data-panel="'+ord[j]+'"]');
+      if(el) d.appendChild(el);
+    }
+  }
+  function applySpan(){
+    var cs=cards();
+    for(var i=0;i<cs.length;i++){
+      var id=cs[i].getAttribute('data-panel');
+      var sp=parseInt(lay.span[id],10); if(!sp) sp=DEF_SPAN[id]||6;
+      cs[i].setAttribute('data-span', sp);
+    }
+  }
+  /* ---------- 自适应布局（瀑布流）：按每张卡的实际高度算它占几行，
+       这样矮卡片下面的空隙会被后面的卡片补上，不会留大片空白 ---------- */
+  var MROW = 8, MGAP = 14;   /* 必须和 CSS 里的 grid-auto-rows / gap 一致 */
+  var __span = {};
+  function layoutMasonry(){
+    var d = dashEl(); if(!d) return;
+    var items = Array.prototype.slice.call(d.querySelectorAll('.modebar, .dashbar, .pnl'));
+    for(var i=0;i<items.length;i++){
+      var el = items[i];
+      if(el.style.display === 'none') continue;
+      var h = el.offsetHeight;                 /* align-self:start，量到的就是自然高度 */
+      if(!h) continue;
+      var n = Math.ceil((h + MGAP) / (MROW + MGAP));
+      if(n < 1) n = 1;
+      var key = el.getAttribute('data-panel') || (el.className.indexOf('modebar') >= 0 ? '__mode__' : '__bar__');
+      if(__span[key] !== n){ __span[key] = n; el.style.gridRowEnd = 'span ' + n; }
+    }
+  }
+  window.addEventListener('resize', function(){ __span = {}; layoutMasonry(); });
+
+  function applyAll(){ applyOrder(); applySpan(); applyHidden(); layoutMasonry(); }
+  applyAll();
+  setInterval(layoutMasonry, 1200);   /* 卡片内容每秒会变，定期重算高度 */
+
+  var cs=cards();
+  for(var ci=0; ci<cs.length; ci++){
+    (function(c){
+      var hd=c.querySelector('h2'); if(!hd) return;
+      hd.addEventListener('mousedown', function(e){
+        var tg=e.target;
+        if(tg && tg.tagName==='BUTTON') return;
+        if(tg && (' '+String(tg.className)+' ').indexOf(' spanbtn ')>-1) return;
+        c.setAttribute('draggable','true');
+      });
+      hd.addEventListener('mouseup', function(){ c.removeAttribute('draggable'); });
+      c.addEventListener('dragstart', function(e){
+        c.classList.add('dragging');
+        try{ e.dataTransfer.setData('text/plain', c.getAttribute('data-panel')); e.dataTransfer.effectAllowed='move'; }catch(x){}
+      });
+      c.addEventListener('dragend', function(){ c.classList.remove('dragging'); c.removeAttribute('draggable'); clearOver(); });
+      c.addEventListener('dragover', function(e){ e.preventDefault(); clearOver(); c.classList.add('over'); });
+      c.addEventListener('dragleave', function(){ c.classList.remove('over'); });
+      c.addEventListener('drop', function(e){
+        e.preventDefault(); clearOver();
+        var from=null;
+        try{ from=e.dataTransfer.getData('text/plain'); }catch(x){}
+        if(!from){ var dg=document.querySelector('.pnl.dragging'); if(dg) from=dg.getAttribute('data-panel'); }
+        var to=c.getAttribute('data-panel');
+        if(!from||from===to) return;
+        var cur=[]; var cc=cards();
+        for(var i=0;i<cc.length;i++) cur.push(cc[i].getAttribute('data-panel'));
+        var fi=cur.indexOf(from), ti=cur.indexOf(to);
+        if(fi<0||ti<0) return;
+        cur.splice(fi,1); cur.splice(ti,0,from);
+        lay.order=cur; persist(); applyOrder();
+      });
+      var hb=document.createElement('button');
+      hb.type='button'; hb.className='hidebtn'; hb.textContent='✕'; hb.title='隐藏这张卡片（顶部会出现恢复按钮）';
+      hd.appendChild(hb);
+      hb.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        hidePanel(c.getAttribute('data-panel'), true);
+      });
+
+      var sb=c.querySelector('.spanbtn');
+      if(sb) sb.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var id=c.getAttribute('data-panel');
+        var cur=parseInt(c.getAttribute('data-span'),10)||6;
+        lay.span[id] = (cur===12)?6:12;
+        persist(); applySpan();
+      });
+    })(cs[ci]);
+  }
+
+  /* ---------- 隐藏 / 恢复卡片 ---------- */
+  var PANEL_NAME = {'hw-cpu':'CPU','hw-mem':'内存','hw-gpu':'GPU','hw-disk':'硬盘','hw-io':'速率',net:'网络',problems:'设备异常',events:'实时事件流',stats:'断联排行',tools:'工具',devices:'在线设备'};
+  function renderHiddenBar(){
+    var bar = document.getElementById('hiddenBar');
+    if(!bar) return;
+    var ids = [];
+    for(var k in lay.hidden){ if(lay.hidden[k]) ids.push(k); }
+    if(!ids.length){ bar.style.display = 'none'; bar.innerHTML = ''; return; }
+    bar.style.display = '';
+    var s = '<span class="hb-lbl">已隐藏 ' + ids.length + ' 张：</span>';
+    for(var i=0;i<ids.length;i++){
+      s += '<button class="hb-chip" type="button" data-id="' + ids[i] + '" title="点一下恢复显示">+ ' + esc(PANEL_NAME[ids[i]] || ids[i]) + '</button>';
+    }
+    s += '<button class="hb-chip" type="button" data-id="__all__" title="全部恢复">全部显示</button>';
+    bar.innerHTML = s;
+  }
+  function applyHidden(){
+    var cs = cards();
+    for(var i=0;i<cs.length;i++){
+      var id = cs[i].getAttribute('data-panel');
+      cs[i].style.display = lay.hidden[id] ? 'none' : '';
+    }
+    renderHiddenBar();
+  }
+  function hidePanel(id, on){
+    if(on){ lay.hidden[id] = true; } else { delete lay.hidden[id]; }
+    persist(); applyHidden(); layoutMasonry();
+  }
+
+  var hbar = document.getElementById('hiddenBar');
+  if(hbar) hbar.addEventListener('click', function(e){
+    var b = e.target;
+    while(b && b !== hbar && (!b.className || (' ' + b.className + ' ').indexOf(' hb-chip ') < 0)) b = b.parentNode;
+    if(!b || b === hbar) return;
+    var id = b.getAttribute('data-id');
+    if(id === '__all__'){
+      lay.hidden = {}; persist(); applyHidden(); layoutMasonry();
+    } else {
+      hidePanel(id, false);
+    }
+  });
+
+  var rb=document.getElementById('layReset');
+  if(rb) rb.addEventListener('click', function(){
+    lay={order:DEF_ORDER.slice(), span:{}, hidden:{}}; persist(); applyAll();
+  });
+
+  var seg=document.getElementById('hwSeg');
+  if(seg) seg.addEventListener('click', function(e){
+    var b=e.target; if(!b||b.tagName!=='BUTTON') return;
+    var mm=b.getAttribute('data-m'); if(!mm) return;
+    window.__hwMetric=mm;
+    try{ fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({HwMetric:mm})}); }catch(x){}
+    if(window.__lastHw) window.renderHw(window.__lastHw);
+  });
+})();
+/* 放在所有 UI 脚本之后调用，确保函数已经定义 */
+if(window.initSettings) window.initSettings();
+</script>
+</body>
+</html>
