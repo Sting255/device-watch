@@ -111,28 +111,52 @@ namespace DeviceWatch
             try { Update(); } catch { }   // 先跑一次，网页第一帧就有数据（和 PowerShell 版一致）
         }
 
-        DateTime _lastSmart = DateTime.MinValue;
+        // ---- NVMe SMART 也走后台线程 ----
+        // 为什么：DeviceIoControl 单独测只要 15ms，但在主循环里实测每 30 秒制造一次
+        // 300ms 以上的界面阻塞（WMI/内核态偶尔会卡）。硬盘温度几分钟才变一度，
+        // 用后台线程 10 秒读一次、主循环只读缓存完全够用。
+        volatile List<DriveSmartInfo> _smartCached;
+        int _smartTicks;
+        static Thread _smartThread;
 
-        /// <summary>直读 NVMe SMART：温度 / 寿命 / 通电时长。10 秒一次。</summary>
+        void StartDriveSmartThread()
+        {
+            if (_smartThread != null) return;
+            _smartThread = new Thread(SmartLoop);
+            _smartThread.IsBackground = true;
+            _smartThread.Name = "NvmeSmart";
+            _smartThread.Start();
+        }
+
+        void SmartLoop()
+        {
+            while (true)
+            {
+                try
+                {
+                    var seen = new HashSet<int>();
+                    var list = new List<DriveSmartInfo>();
+                    foreach (var v in AppState.I.Hw.Disks)
+                    {
+                        if (v.Pnum < 0 || !seen.Add(v.Pnum)) continue;
+                        var info = NvmeSmart.Read(v.Pnum);
+                        if (info != null) list.Add(info);
+                    }
+                    if (list.Count > 0) { _smartCached = list; _smartTicks = Environment.TickCount; }
+                }
+                catch { }
+                Thread.Sleep(10000);
+            }
+        }
+
+        /// <summary>发布后台线程最近一次读到的 SMART。超过 1 分钟没更新就当读不到。</summary>
         void UpdateDriveSmart(HwState hw)
         {
-            if ((DateTime.Now - _lastSmart).TotalSeconds < 10) return;
-            _lastSmart = DateTime.Now;
-
-            // 从已知的分区归属里取物理磁盘号，去重后逐块读
-            var seen = new HashSet<int>();
-            var list = new List<DriveSmartInfo>();
-            try
-            {
-                foreach (var v in hw.Disks)
-                {
-                    if (v.Pnum < 0 || !seen.Add(v.Pnum)) continue;
-                    var info = NvmeSmart.Read(v.Pnum);
-                    if (info != null) list.Add(info);
-                }
-            }
-            catch { }
-            if (list.Count > 0) hw.DriveSmart = list;
+            if (_smartThread == null) StartDriveSmartThread();
+            if (_smartTicks == 0) return;                                  // 还没出第一次结果
+            if (Environment.TickCount - _smartTicks > 60000) return;
+            var c = _smartCached;
+            if (c != null) hw.DriveSmart = c;
         }
 
         /// <summary>所有非回环适配器的 Up/Down 状态（面板的「网络」卡片要用）。</summary>
@@ -679,7 +703,6 @@ namespace DeviceWatch
         // 为什么：WMI 热区查询平均 1ms，但 WMI 服务一抖动就会飙到 500ms 以上。
         // 实测它稳定地每 30~90 秒制造一次 550ms 的界面阻塞 —— 放在热路径里不可接受。
         // 温度变化很慢，用后台线程 2 秒查一次、主循环只读缓存，完全够用。
-        volatile int _tzStamp;          // 用"写入序号"代替锁：偶数=稳定，读到奇数说明正在写，用旧值就行
         double? _tzCached;
         int _tzTicks;
         static Thread _tzThread;
