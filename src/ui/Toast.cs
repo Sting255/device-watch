@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  Toast.cs —— Windows 10/11 原生气泡通知（WinRT Toast）
 //
 //  对应 DeviceWatch.ps1 里的 Initialize-Notifier（第 735 行）与 Show-Alert（第 749 行）。
@@ -33,7 +33,7 @@ namespace DeviceWatch
         public const string AppId = "DeviceWatch.Monitor";
 
         /// <summary>注册表里给这个 AUMID 一个好听的名字和图标（否则通知头显示 exe 名）。</summary>
-        private const string DisplayName = "设备连接监控";
+        private const string DisplayName = "断联哨兵";
 
         private static bool _inited;
 

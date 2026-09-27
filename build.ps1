@@ -26,17 +26,17 @@ try {
 }
 finally { Pop-Location }
 
-$exe = Join-Path $proj 'bin\Release\net48\设备连接监控.exe'
+$exe = Join-Path $proj 'bin\Release\net48\断联哨兵.exe'
 if (-not (Test-Path $exe)) { throw "找不到构建产物：$exe" }
 Copy-Item $exe $root -Force
 Copy-Item ($exe + '.config') $root -Force -ErrorAction SilentlyContinue
 
-$size = [Math]::Round((Get-Item (Join-Path $root '设备连接监控.exe')).Length / 1KB)
-Write-Host ("构建完成：设备连接监控.exe（{0} KB）" -f $size) -ForegroundColor Green
+$size = [Math]::Round((Get-Item (Join-Path $root '断联哨兵.exe')).Length / 1KB)
+Write-Host ("构建完成：断联哨兵.exe（{0} KB）" -f $size) -ForegroundColor Green
 
 if ($Run) {
     Write-Host '启动中…' -ForegroundColor Cyan
-    Start-Process (Join-Path $root '设备连接监控.exe')
+    Start-Process (Join-Path $root '断联哨兵.exe')
 }
 if ($Test) {
     Write-Host '等待面板就绪…' -ForegroundColor Cyan

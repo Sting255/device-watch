@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- 目标 .NET Framework 4.8：Win10 1803+ / Win11 系统自带，用户免安装 -->
@@ -6,7 +6,7 @@
     <TargetFramework>net48</TargetFramework>
     <LangVersion>latest</LangVersion>
 
-    <AssemblyName>设备连接监控</AssemblyName>
+    <AssemblyName>断联哨兵</AssemblyName>
     <RootNamespace>DeviceWatch</RootNamespace>
 
     <!-- WinForms：托盘图标和菜单要用 -->
@@ -42,6 +42,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 12 个托管 DLL 全部内嵌进 exe：这样才能做到「单个 exe、免安装」，
+         用户下载一个文件就能跑，不用连 lib\ 目录一起拷。
+         运行时由 LhmSensors 的 AssemblyResolve 从内嵌资源加载。
+         （LHM 的内核驱动是它自己内嵌的，运行时解压到临时目录，不受影响。） -->
+    <EmbeddedResource Include="..\lib\*.dll">
+      <LogicalName>DeviceWatch.lib.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+
     <!-- 网页前端打进 exe，保证「单个 exe 免安装」 -->
     <EmbeddedResource Include="ui\index.html">
       <LogicalName>DeviceWatch.ui.index.html</LogicalName>

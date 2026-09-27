@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  Tray.cs —— 托盘图标 + 右键菜单
 //
 //  对应 DeviceWatch.ps1 里的 Initialize-Tray（第 820 行）/ Update-Tray（第 918 行）/
@@ -405,7 +405,7 @@ namespace DeviceWatch
             {
                 int n = 0;
                 try { n = AppState.I.DeviceCount; } catch { }
-                Toast.Show("设备连接监控 - 测试",
+                Toast.Show("断联哨兵 - 测试",
                            string.Format("通知通道正常。当前在线设备 {0} 个。", n), "Warn");
             }
             catch (Exception ex) { Log.Write("测试通知失败：" + ex.Message, "Warn"); }

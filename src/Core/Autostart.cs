@@ -83,7 +83,7 @@ namespace DeviceWatch
             }
 
             // /TR 的值内部要带引号（路径可能有空格），外面再包一层给 schtasks 自己解析，
-            // 所以是 "\"C:\...\设备连接监控.exe\" silent"
+            // 所以是 "\"C:\...\断联哨兵.exe\" silent"
             string tr = "\\\"" + exe + "\\\" " + SilentArg;
 
             var args = new List<string>

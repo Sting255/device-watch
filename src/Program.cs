@@ -186,7 +186,7 @@ namespace DeviceWatch
             S.HwMetric = Settings.I.HwMetric;
             S.NotifyEnabled = Settings.I.Notify;
 
-            Log.Write("设备连接监控 v" + Version + " 启动");
+            Log.Write("断联哨兵 v" + Version + " 启动");
             Log.Write("程序目录：" + AppDir);
 
             if (Settings.I.ShowTray && !_noTray)
@@ -530,7 +530,7 @@ namespace DeviceWatch
             try
             {
                 MessageBox.Show(ok ? (install ? "已安装开机自启。" : "已取消开机自启。") : "操作失败。",
-                    "设备连接监控", MessageBoxButtons.OK,
+                    "断联哨兵", MessageBoxButtons.OK,
                     ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             }
             catch { }
@@ -549,7 +549,7 @@ namespace DeviceWatch
             }
             catch (Exception ex)
             {
-                try { MessageBox.Show("生成失败：" + ex.Message, "设备连接监控"); } catch { }
+                try { MessageBox.Show("生成失败：" + ex.Message, "断联哨兵"); } catch { }
                 return 1;
             }
         }
@@ -572,22 +572,22 @@ namespace DeviceWatch
         private static void ShowHelp()
         {
             string txt =
-                "设备连接监控 v" + Version + " —— 命令行说明\r\n\r\n" +
-                "  设备连接监控.exe              启动 + 打开监测网页\r\n" +
-                "  设备连接监控.exe silent       启动但不打开网页（开机自启用）\r\n" +
-                "  设备连接监控.exe stop         停止监控\r\n" +
-                "  设备连接监控.exe web          只打开监测网页\r\n" +
-                "  设备连接监控.exe log          打开日志文件夹\r\n" +
-                "  设备连接监控.exe autostart    安装开机自启\r\n" +
-                "  设备连接监控.exe noautostart  取消开机自启\r\n" +
-                "  设备连接监控.exe debug        带控制台窗口启动，排查问题用\r\n" +
-                "  设备连接监控.exe noelevate    不提权启动（读不到内存温度）\r\n" +
-                "  设备连接监控.exe inventory    生成设备清单\r\n" +
-                "  设备连接监控.exe help         显示这份帮助\r\n\r\n" +
+                "断联哨兵 v" + Version + " —— 命令行说明\r\n\r\n" +
+                "  断联哨兵.exe              启动 + 打开监测网页\r\n" +
+                "  断联哨兵.exe silent       启动但不打开网页（开机自启用）\r\n" +
+                "  断联哨兵.exe stop         停止监控\r\n" +
+                "  断联哨兵.exe web          只打开监测网页\r\n" +
+                "  断联哨兵.exe log          打开日志文件夹\r\n" +
+                "  断联哨兵.exe autostart    安装开机自启\r\n" +
+                "  断联哨兵.exe noautostart  取消开机自启\r\n" +
+                "  断联哨兵.exe debug        带控制台窗口启动，排查问题用\r\n" +
+                "  断联哨兵.exe noelevate    不提权启动（读不到内存温度）\r\n" +
+                "  断联哨兵.exe inventory    生成设备清单\r\n" +
+                "  断联哨兵.exe help         显示这份帮助\r\n\r\n" +
                 "平时直接双击就行，不需要任何参数。\r\n" +
                 "监测范围（外设 / 硬件 / 全部）在网页上切换。";
             try { Console.WriteLine(txt); } catch { }
-            try { MessageBox.Show(txt, "设备连接监控 - 帮助", MessageBoxButtons.OK, MessageBoxIcon.Information); } catch { }
+            try { MessageBox.Show(txt, "断联哨兵 - 帮助", MessageBoxButtons.OK, MessageBoxIcon.Information); } catch { }
         }
     }
 }

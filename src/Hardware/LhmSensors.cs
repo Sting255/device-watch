@@ -1,10 +1,10 @@
-// ============================================================================
+﻿// ============================================================================
 //  LhmSensors.cs —— 低层传感器：内存条温度 / CPU 封装功耗 / GPU 核心热点与显存结温
 //
 //  数据来源：lib\LibreHardwareMonitorLib.dll（MPL-2.0，随工具分发）。
 //  这几项读数必须走内核驱动（SMBus / MSR / NVAPI），只有管理员 + 该库能拿到，
 //  所以它是 HwState 之外的一条“补充通道”：拿不到任何东西时整条通道静默关闭，
-//  AppState.Ext 保持 null，绝不拖累设备监控、硬件监控、网页面板。
+//  AppState.Ext 保持 null，绝不拖累设备监控、断联哨兵、网页面板。
 //
 //  【为什么全程用反射，而不是引用 DLL / 用 dynamic】
 //    1) 这个 DLL 不参与编译：它和 12 个依赖 DLL（HidSharp、System.IO.Ports、
@@ -67,7 +67,7 @@ namespace DeviceWatch
         /// <summary>挂上 AssemblyResolve（进程级、只挂一次），并记下 lib\ 目录。</summary>
         private static void AttachResolver(string libDir)
         {
-            _libDir = libDir;
+            _libDir = libDir;   // 允许为 null：DLL 内嵌时根本不需要这个目录
             if (Interlocked.Exchange(ref _resolverAttached, 1) == 1) return;
             AppDomain.CurrentDomain.AssemblyResolve += ResolveFromLib;
         }
@@ -94,6 +94,12 @@ namespace DeviceWatch
                 }
                 try
                 {
+                    // 优先从内嵌资源加载 —— 这是「单 exe 发布」的关键：
+                    // 用户只下载一个 exe，lib\ 里的 12 个 DLL 都编在里面。
+                    Assembly embedded = LoadEmbedded(simple);
+                    if (embedded != null) return embedded;
+
+                    // 退回 lib\ 目录（开发时方便直接换 DLL 调试）
                     string dir = _libDir;
                     if (string.IsNullOrEmpty(dir)) return null;
                     string path = Path.Combine(dir, simple + ".dll");
@@ -110,6 +116,30 @@ namespace DeviceWatch
                 // 解析失败必须安静地返回 null，让 CLR 走它自己的失败路径
                 return null;
             }
+        }
+
+        /// <summary>从内嵌资源里加载一个程序集。找不到返回 null。</summary>
+        private static Assembly LoadEmbedded(string simpleName)
+        {
+            try
+            {
+                Assembly self = Assembly.GetExecutingAssembly();
+                string res = "DeviceWatch.lib." + simpleName + ".dll";
+                using (Stream s = self.GetManifestResourceStream(res))
+                {
+                    if (s == null) return null;
+                    var buf = new byte[s.Length];
+                    int read = 0;
+                    while (read < buf.Length)
+                    {
+                        int n = s.Read(buf, read, buf.Length - read);
+                        if (n <= 0) break;
+                        read += n;
+                    }
+                    return Assembly.Load(buf);
+                }
+            }
+            catch { return null; }
         }
 
         /// <summary>从 exe 所在目录逐级向上找 lib\LibreHardwareMonitorLib.dll（打包后 lib\ 与 exe 同级）。</summary>
@@ -186,12 +216,9 @@ namespace DeviceWatch
             object computer = null;
             try
             {
+                // lib\ 目录现在可有可无：DLL 已经内嵌在 exe 里了。
+                // 保留它只是为了开发时能直接替换 DLL 调试。
                 string libDir = FindLibDir();
-                if (libDir == null)
-                {
-                    Log.Write("低层传感器未启用：找不到 lib\\" + LibDllName);
-                    return false;
-                }
 
                 // 非管理员时驱动加载不了，直接放弃（也避免白白等 5 秒）
                 if (!IsAdmin())
@@ -202,7 +229,14 @@ namespace DeviceWatch
 
                 AttachResolver(libDir);
 
-                Assembly asm = Assembly.LoadFrom(Path.Combine(libDir, LibDllName));
+                Assembly asm = LoadEmbedded("LibreHardwareMonitorLib");
+                if (asm == null && !string.IsNullOrEmpty(libDir))
+                    asm = Assembly.LoadFrom(Path.Combine(libDir, LibDllName));
+                if (asm == null)
+                {
+                    Log.Write("低层传感器未启用：内嵌资源里没有 " + LibDllName);
+                    return false;
+                }
                 Type computerType = asm.GetType(ComputerTypeName, false);
                 if (computerType == null)
                 {

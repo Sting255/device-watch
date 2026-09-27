@@ -1,8 +1,8 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>设备连接监控</title>
+<title>断联哨兵</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 *{box-sizing:border-box}
@@ -232,7 +232,7 @@ button:hover{background:#27303f}
 </head>
 <body>
 <header>
-  <h1>🔌 <span id="hTitle">设备连接监控</span></h1>
+  <h1>🔌 <span id="hTitle">断联哨兵</span></h1>
   <div id="pill" class="pill off">连接中…</div>
   <label class="sw" title="关闭后所有设备告警都不再弹窗（日志和网页照常记录）">
     <input type="checkbox" id="notifySw"><span class="sl"></span>弹窗通知
@@ -427,7 +427,7 @@ function render(s){
   window.__mode = s.mode || 'All';
   if(document.body.getAttribute('data-mode') !== window.__mode) document.body.setAttribute('data-mode', window.__mode);
   var _ht = document.getElementById('hTitle');
-  if(_ht) _ht.textContent = (window.__mode === 'Device') ? '外设连接监测' : (window.__mode === 'Hardware' ? '硬件状态监测' : '设备连接监控');
+  if(_ht) _ht.textContent = (window.__mode === 'Device') ? '外设连接监测' : (window.__mode === 'Hardware' ? '硬件状态监测' : '断联哨兵');
 
   /* 拆分模式下告诉用户另一半在哪 —— 否则会以为"数据采集不出来" */
   /* 运行模式开关：切换后服务端会立刻停掉/开始对应部分的采样 */
