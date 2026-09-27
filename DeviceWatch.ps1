@@ -5458,7 +5458,11 @@ if ($script:Settings.ShowTray -and -not $NoTray) { Initialize-Tray }
 if ($script:Settings.WebEnabled -and -not $NoWeb) { Initialize-WebServer | Out-Null }
 try { $script:AutoStartOn = Get-AutostartState } catch { }
 $script:AutoStartChecked = Get-Date
-try { Initialize-Hardware } catch { Write-Log ("硬件采集初始化失败：{0}" -f $_.Exception.Message) -Kind 'Warn' }
+# 硬件采集子系统（WMI / 性能计数器 / nvidia-smi）只在需要它的模式下初始化。
+# 只跑外设时完全不碰它，省内存也省启动时间；之后切到硬件模式会在主循环里补上。
+if ($script:Mode -ne 'Device') {
+    try { Initialize-Hardware } catch { Write-Log ("硬件采集初始化失败：{0}" -f $_.Exception.Message) -Kind 'Warn' }
+}
 
 # 低层传感器库（LHM）不在这里加载 —— 它的 Open() 要 5~6 秒。
 # 放在启动路径上会出现「网页端口已经监听、但迟迟不响应」的白等：
@@ -5767,6 +5771,11 @@ while ($script:Running) {
     }   # ---- 外设监测结束 ----
 
     if ($script:Mode -ne 'Device') {   # ======== 硬件监测 ========
+        # 懒初始化：启动时若只跑外设，这里才第一次建硬件子系统（省内存）
+        if ($null -eq $script:Hw) {
+            if ($Console) { Write-Host '正在初始化硬件采集…' -ForegroundColor DarkGray }
+            try { Initialize-Hardware } catch { Write-Log ("硬件采集初始化失败：{0}" -f $_.Exception.Message) -Kind 'Warn' }
+        }
         # 懒加载 + 延迟 2 秒：
         #   - 懒加载：只跑外设时不白等；运行中切到硬件模式时才加载
         #   - 延迟 2 秒（仅启动时那一次）：先让面板把设备列表显示出来，
