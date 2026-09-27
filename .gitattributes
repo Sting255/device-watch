@@ -1,0 +1,26 @@
+# 换行符必须锁死成 CRLF。
+#
+# 原因：cmd.exe 执行 .cmd/.bat 需要 CRLF；WSH 执行 .vbs 也需要 CRLF。
+# 如果 Git 在 checkout 时把它们转成 LF，别人 clone 下来就会出现
+# 「命令语法不正确」「未结束的字符串常量」之类的怪毛病，而且极难排查。
+#
+# .ps1 其实两种换行都能跑，但保持一致，避免 diff 噪音。
+# 注意：PowerShell 5.1 把无 BOM 的 UTF-8 当 ANSI 读，所以 .ps1 必须带 BOM，
+# 这一点 .gitattributes 管不了，改动时请用带 BOM 的编辑器保存。
+
+* text=auto eol=crlf
+
+*.ps1  text eol=crlf
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+*.vbs  text eol=crlf
+*.cs   text eol=crlf
+*.md   text eol=crlf
+*.json text eol=crlf
+
+# 二进制文件不要碰
+*.dll  binary
+*.exe  binary
+*.zip  binary
+*.png  binary
+*.ico  binary
