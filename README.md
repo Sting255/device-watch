@@ -118,4 +118,5 @@ Windows 10 / 11 **x64**，PowerShell 5.1 和 .NET Framework 4.7.2（系统自带
 
 MIT，见 [LICENSE](LICENSE)。
 
-`lib\` 目录下的 DLL 是 [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)（MPL-2.0），以未修改的二进制形式分发。
+`lib\` 目录下的 DLL 来自 [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)（MPL-2.0），
+以未修改的二进制形式分发，详见 [THIRD-PARTY.md](THIRD-PARTY.md)。

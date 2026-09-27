@@ -19,20 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
-================================================================================
-第三方组件
-================================================================================
-
-lib\ 目录下的 DLL 是 LibreHardwareMonitorLib 及其依赖，用于读取需要内核驱动
-才能访问的传感器（内存温度、CPU 封装功耗、GPU 核心热点等）。
-
-  项目：LibreHardwareMonitor
-  地址：https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
-  许可：Mozilla Public License 2.0 (MPL-2.0)
-  说明：本仓库以未修改的二进制形式分发，符合 MPL-2.0 的要求。
-        如需修改其源码，请遵循 MPL-2.0 的规定公开修改后的源码。
-
-本项目的其余代码（DeviceWatch.ps1、启动器、批处理脚本等）均为原创，
-按上面的 MIT 许可发布。
