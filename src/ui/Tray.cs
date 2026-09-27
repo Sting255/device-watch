@@ -194,7 +194,7 @@ namespace DeviceWatch
                 if (netDown) state = "外网断开";
                 else if (problems > 0)
                 {
-                    // 只有一个故障设备时直接把名字报出来，比"有 1 个设备故障"有用
+                    // 只有一个故障设备时直接把名字报出来，信息更直接
                     string only = null;
                     try
                     {

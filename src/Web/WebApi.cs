@@ -808,7 +808,7 @@ namespace DeviceWatch
             return _htmlCache;
         }
 
-        /// <summary>嵌入资源丢失时给用户看的中文提示页，总比一片空白强。</summary>
+        /// <summary>嵌入资源丢失时给用户看的中文提示页，避免一片空白。</summary>
         private static string HtmlFallback()
         {
             var names = new StringBuilder();

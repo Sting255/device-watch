@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  DevNative.cs —— 设备枚举的原生调用（SetupAPI + CfgMgr32）
 //
 //  三条路径的耗时差两个数量级，用错地方界面会明显发卡，所以分开实现：
@@ -228,7 +228,7 @@ namespace DeviceWatch
                         StringBuilder sb = new StringBuilder(1024);
                         uint need;
                         if (!SetupDiGetDeviceInstanceId(set, ref d, sb, (uint)sb.Capacity, out need) || sb.Length == 0)
-                            continue;      // 拿不到实例 ID 的行没有任何用，丢掉比带个空 ID 往上走强
+                            continue;      // 拿不到实例 ID 的行没有意义，直接丢掉，避免空 ID 传到下游
                         string desc = Str(set, ref d, SPDRP_FRIENDLYNAME, scratch);
                         if (desc.Length == 0) desc = Str(set, ref d, SPDRP_DEVICEDESC, scratch);
                         uint status = 0, problem = 0;

@@ -815,7 +815,7 @@ namespace DeviceWatch
             catch { DisposeQuietly(_cpuFreqSe); _cpuFreqSe = null; }
 
             // (3) 最后兜底：Win32_Processor.CurrentClockSpeed
-            //     （AMD 上等于基频，但总比让界面上留个 0 强）
+            //     （AMD 上等于基频，但至少不会在界面上留个 0）
             try
             {
                 if (_cpuClockSe == null)
