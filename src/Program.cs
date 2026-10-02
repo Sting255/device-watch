@@ -47,7 +47,7 @@ namespace DeviceWatch
         // 阶段名统一放在 AppState.CurrentPhase 里（硬件模块也会写它），
 
         // ---- 周期计时器（用 Environment.TickCount）----
-        private static int _tEvt, _tScan, _tExt, _tHw, _tTray, _tAuto;
+        private static int _tEvt, _tExt, _tHw, _tTray, _tAuto;
 
         [STAThread]
         private static int Main(string[] args)
@@ -228,7 +228,7 @@ namespace DeviceWatch
             DeviceMonitor.PumpHook = Pump;
             try { _dev.Initialize(); } catch (Exception ex) { Log.Write("设备基线建立失败：" + ex.Message, "Warn"); }
             Log.Write(string.Format("基线建立完成：当前在线设备 {0} 个", S.DeviceCount));
-            ScanProblems();
+            StartProblemScanThread();   // 首次扫描由它自己做（800ms 后），不拖慢面板首屏
             Log.Write(string.Format("设备状态检查：发现 {0} 个异常设备", S.ProblemCount));
 
             // 启动阶段的耗时不算「运行期卡顿」
@@ -271,14 +271,12 @@ namespace DeviceWatch
                         Pump();
                     }
 
-                    if (DeviceMonitor.ForceFullScan || Elapsed(ref _tScan, Settings.I.FullScanSec * 1000))
+                    // 完整扫描（枚举 289 台设备的故障码）不在这里做 —— 它要 120~660ms，
+                    // 放在主循环里每 90 秒卡一次界面。交给后台线程，这里只转发"立刻扫一次"的请求。
+                    if (DeviceMonitor.ForceFullScan)
                     {
-                        AppState.I.CurrentPhase = "外设-完整扫描";
                         DeviceMonitor.ForceFullScan = false;
-                        Pump();
-                        ScanProblems();
-                        Pump();
-                        Pump();
+                        _scanNow = true;
                     }
                 }
 
@@ -396,6 +394,42 @@ namespace DeviceWatch
             if (last == 0) { last = now; return true; }
             if (now - last >= interval) { last = now; return true; }
             return false;
+        }
+
+        // ---- 完整扫描（故障码枚举）走后台线程 ----
+        // DevNative.Details() 要枚举 289 台设备、每台读 4 个属性，实测 120~660ms
+        // （随系统负载浮动，WMI/注册表一忙就更慢）。放在主循环里每 90 秒卡一次界面。
+        // 它只更新 AppState.ProblemList / BenignList 给网页显示，没有时序要求，
+        // 所以放后台线程最合适 —— 和 CPU 温度、NVMe SMART 的处理方式一致。
+        private static volatile bool _scanNow;
+        private static Thread _scanThread;
+
+        private static void StartProblemScanThread()
+        {
+            if (_scanThread != null) return;
+            _scanThread = new Thread(ProblemScanLoop);
+            _scanThread.IsBackground = true;
+            _scanThread.Name = "ProblemScan";
+            _scanThread.Start();
+        }
+
+        private static void ProblemScanLoop()
+        {
+            Thread.Sleep(800);                       // 让基线和网页面板先起来
+            while (true)
+            {
+                try { ScanProblems(); } catch { }
+                int period = 90000;
+                try { period = Math.Max(15, Settings.I.FullScanSec) * 1000; } catch { }
+                // 拆成 200ms 一片地等：托盘点「立即完整扫描」最多 200ms 就能插进来
+                int waited = 0;
+                while (waited < period)
+                {
+                    if (_scanNow) { _scanNow = false; break; }
+                    Thread.Sleep(200);
+                    waited += 200;
+                }
+            }
         }
 
         private static void ScanProblems()
